@@ -1,9 +1,17 @@
 # Override default implicit rules
 
+.PHONY: all clean
+
+all: $(TARGET)
+
+clean:
+	@echo -e "\tRM\t$(TARGET) $(OBJECTS)"
+	$(A)rm -f $(TARGET) $(OBJECTS)
+
 %.o: %.c
-	$(A)echo -e "\tCC\t$^"
+	@echo -e "\tCC\t$^"
 	$(A)$(CC) $(CFLAGS) -o $@ -c $^
 
 $(TARGET): $(OBJECTS)
-	$(A)echo -e "\tLD\t$^"
+	@echo -e "\tLD\t$^"
 	$(A)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^

@@ -3,6 +3,7 @@
 
 typedef enum
 {
+  COMMANDNODE_NULL,
   COMMANDNODE_WORD,
   COMMANDNODE_PROGRAM,
   COMMANDNODE_ARGUMENT
@@ -14,6 +15,9 @@ typedef struct CommandNodeRef
   char *str;
   struct CommandNodeRef *next;
 } CommandNode;
+
+CommandNode *cmdnode_alloc(COMMANDNODE_TYPE type);
+void cmdnode_free(CommandNode *node);
 
 #endif /* CMDNODE_H */
 

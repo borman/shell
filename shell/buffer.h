@@ -18,6 +18,7 @@ void buffer_free(Buffer *buffer);
 
 void buffer_clear(Buffer *buffer);
 void buffer_putchar(Buffer *buffer, char c);
+void buffer_copy(Buffer *dest, const char *src);
 
 
 #endif

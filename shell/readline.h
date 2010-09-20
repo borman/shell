@@ -10,7 +10,7 @@ typedef enum
 } READLINE_RESULT;
 
 
-READLINE_RESULT readline(Buffer *buf);
+READLINE_RESULT readline(const char *prompt, Buffer *buf);
 
 #endif /* READLINE_H */
 
