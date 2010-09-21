@@ -1,8 +1,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "cmdnode.h"
+#include "szlist.h"
 
-void debug_dump_cmdnode_list(CommandNode *node);
+void debug_dump_szlist(SzListNode *node);
 
 #endif /* DEBUG_H */

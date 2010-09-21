@@ -14,13 +14,12 @@ CommandTree *cmdline_lex(const char *cmdline)
   } state = ST_WHITESPACE;
   const size_t length = strlen(cmdline);
   size_t i;
-
-  CommandNode *node = NULL;
-  CommandNode *tail = NULL;
+  SzListNode *node = NULL;
 
   CommandTree *tree = (CommandTree *)malloc(sizeof(CommandTree));
-  tree->root = NULL;
-  tree->errno = 0;
+
+  szlist_init(&tree->tokens, NULL);
+  tree->status = CMDLINE_OK;
   tree->stringdata = buffer_alloc();
 
   /* terminating zero is handled like a normal character */
@@ -34,15 +33,13 @@ CommandTree *cmdline_lex(const char *cmdline)
         {
           state = ST_QUOTE;
           /* start word */
-          node = cmdnode_alloc(COMMANDNODE_WORD);
-          node->str = tree->stringdata->c_str + tree->stringdata->length;
+          node = szlist_node_alloc(buffer_end(tree->stringdata));
         }
         else if (c!='\0' && !isspace(c))
         {
           state = ST_WORD;
           /* start word */
-          node = cmdnode_alloc(COMMANDNODE_WORD);
-          node->str = tree->stringdata->c_str + tree->stringdata->length;
+          node = szlist_node_alloc(buffer_end(tree->stringdata));
           /* append char */
           buffer_putchar(tree->stringdata, c);
         }
@@ -66,11 +63,7 @@ CommandTree *cmdline_lex(const char *cmdline)
           state = ST_WHITESPACE;
           /* finish word */
           buffer_putchar(tree->stringdata, '\0');
-          if (tree->root == NULL)
-            tree->root = node;
-          if (tail != NULL)
-            tail->next = node;
-          tail = node;
+          szlist_append(&tree->tokens, node);
           node = NULL;
         }
         else if (c=='"')
@@ -86,9 +79,9 @@ CommandTree *cmdline_lex(const char *cmdline)
   }
 
   /* Detect parsing errors */
-  if (state != ST_WHITESPACE)
+  if (state == ST_QUOTE)
   {
-    tree->errno = 1;
+    tree->status = CMDLINE_LEX_UNBALANCED_QUOTE;
     if (node != NULL)
     {
       free(node);
@@ -106,11 +99,7 @@ void cmdline_parse(CommandTree *tree)
 void cmdline_free(CommandTree *tree)
 {
   buffer_free(tree->stringdata);
+  szlist_destroy(&tree->tokens);
   free(tree);
-}
-
-int cmdline_exec(CommandNode *node)
-{
-  return -1;
 }
 

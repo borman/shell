@@ -49,3 +49,7 @@ void buffer_copy(Buffer *dest, const char *src)
   strcpy(dest->c_str, src);
 }
 
+char *buffer_end(Buffer *buf)
+{
+  return buf->c_str + buf->length;
+}

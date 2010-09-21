@@ -12,10 +12,10 @@ int main(int argc, char **argv)
   {
     CommandTree *tree;
 
-    result = readline("model_sh $", linebuffer); 
+    result = readline("borsh$", linebuffer); 
     tree = cmdline_lex(linebuffer->c_str);
 
-    debug_dump_cmdnode_list(tree->root);
+    debug_dump_szlist(tree->tokens.root);
 
     cmdline_free(tree); 
 

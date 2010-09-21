@@ -20,6 +20,8 @@ void buffer_clear(Buffer *buffer);
 void buffer_putchar(Buffer *buffer, char c);
 void buffer_copy(Buffer *dest, const char *src);
 
+char *buffer_end(Buffer *buf);
+
 
 #endif
 
