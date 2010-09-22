@@ -12,10 +12,19 @@ int main(int argc, char **argv)
   {
     CommandTree *tree;
 
-    result = readline("borsh$", linebuffer); 
+    result = readline("model shell$", linebuffer); 
     tree = cmdline_lex(linebuffer->c_str);
 
-    debug_dump_szlist(tree->tokens.root);
+    switch (tree->status)
+    {
+      case CMDLINE_OK:
+        debug_dump_szlist(tree->tokens.root);
+        break;
+
+      case CMDLINE_LEX_UNBALANCED_QUOTE:
+        printf("Syntax error: Unbalanced quotes\n");
+        break;
+    }
 
     cmdline_free(tree); 
 

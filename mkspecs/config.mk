@@ -1,6 +1,6 @@
-CC = clang
-CFLAGS = -std=c90 -ansi -pedantic -Wall -g
-LDFLAGS = -lm
+CC ?= clang
+CFLAGS ?= -std=c90 -ansi -pedantic -Wall -g
+LDFLAGS ?= -lm
 
 VERBOSE_MAKE ?= 0
 

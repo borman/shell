@@ -18,11 +18,20 @@ typedef struct
   CMDLINE_PARSER_STATUS status;
 
   /* private */
-  Buffer *stringdata;
+  Buffer *strings;
 } CommandTree;
 
+/** 
+ * Perform lexical parsing of cmdline.
+ * 
+ * Returns a non-NULL pointer in any case.
+ * result.tokens is set to a list of tokens.
+ * result.status indicates if there were errors.
+ */
 CommandTree *cmdline_lex(const char *cmdline);
-void cmdline_parse(CommandTree *tree);
+/**
+ * Free resources allocated for parsed command line string.
+ */
 void cmdline_free(CommandTree *tree);
 
 #endif /* CMDLINE_H */

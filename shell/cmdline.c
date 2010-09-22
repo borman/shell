@@ -4,102 +4,134 @@
 #include <string.h>
 #include <stdlib.h>
 
-CommandTree *cmdline_lex(const char *cmdline)
+/**
+ * Command line lexer
+ * Splits command line into a list of words
+ * Implemented as a finite state machine
+ *
+ * Tokens are stored internally as a sequence of 0-terminated strings in a 
+ * single buffer.
+ */
+
+typedef enum
 {
-  enum
-  {
-    ST_WHITESPACE,
-    ST_WORD,
-    ST_QUOTE
-  } state = ST_WHITESPACE;
-  const size_t length = strlen(cmdline);
+  ST_WHITESPACE,
+  ST_WORD,
+  ST_QUOTE
+} LEXER_STATE;
+
+typedef struct 
+{
+  Buffer *strings;
+  SzList *tokens;
+} LexerContext;
+
+/* Lexer operations to clean up FSM inner code */
+
+static void lexer_begin_word(LexerContext *context)
+{
+  SzListNode *node = szlist_node_alloc(buffer_end(context->strings));
+  szlist_append(context->tokens, node);
+}
+
+static void lexer_end_word(LexerContext *context)
+{
+  buffer_putchar(context->strings, '\0'); /* separate tokens */
+}
+
+static void lexer_append_char(LexerContext *context, char c)
+{
+  buffer_putchar(context->strings, c);
+}
+
+/* Lexer FSM main loop */
+static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
+{
+  LEXER_STATE state = ST_WHITESPACE;
+  const size_t length = strlen(src);
   size_t i;
-  SzListNode *node = NULL;
-
-  CommandTree *tree = (CommandTree *)malloc(sizeof(CommandTree));
-
-  szlist_init(&tree->tokens, NULL);
-  tree->status = CMDLINE_OK;
-  tree->stringdata = buffer_alloc();
 
   /* terminating zero is handled like a normal character */
   for (i=0; i<length+1; i++)
   {
-    const char c = cmdline[i];
+    const char c = src[i];
     switch (state)
     {
       case ST_WHITESPACE:
-        if (c=='"')
+        if (c=='"') /* start a quoted string, new token */
         {
           state = ST_QUOTE;
-          /* start word */
-          node = szlist_node_alloc(buffer_end(tree->stringdata));
+
+          lexer_begin_word(context);
         }
-        else if (c!='\0' && !isspace(c))
+        else if (c!='\0' && !isspace(c)) /* start a new token */
         {
           state = ST_WORD;
-          /* start word */
-          node = szlist_node_alloc(buffer_end(tree->stringdata));
-          /* append char */
-          buffer_putchar(tree->stringdata, c);
+
+          lexer_begin_word(context);
+          lexer_append_char(context, c);
         }
+        /* whitespace -> ignore */
         break;
 
       case ST_QUOTE:
-        if (c=='"')
+        if (c=='"') /* end a quoted string */
         {
           state = ST_WORD;
         } 
-        else if (c!='\0')
+        else if (c!='\0') /* append a char from inside quotes to token */
         {
-          /* append char */
-          buffer_putchar(tree->stringdata, c);
+          lexer_append_char(context, c);
         }
+        /* '\0' -> ignore (will set error flag later) */
         break;
 
       case ST_WORD:
-        if (c=='\0' || isspace(c))
+        if (c=='\0' || isspace(c)) /* end a token */
         {
           state = ST_WHITESPACE;
-          /* finish word */
-          buffer_putchar(tree->stringdata, '\0');
-          szlist_append(&tree->tokens, node);
-          node = NULL;
+
+          lexer_end_word(context);
         }
-        else if (c=='"')
+        else if (c=='"') /* start a quoted string */
         {
           state = ST_QUOTE;
         }
-        else 
+        else /* append a char to token */
         {
-          /* append char */
-          buffer_putchar(tree->stringdata, c);
+          lexer_append_char(context, c);
         }
     }    
   }
 
-  /* Detect parsing errors */
+  /* Detect lexing errors */
   if (state == ST_QUOTE)
-  {
-    tree->status = CMDLINE_LEX_UNBALANCED_QUOTE;
-    if (node != NULL)
-    {
-      free(node);
-      node = NULL;
-    }
-  }
+    return CMDLINE_LEX_UNBALANCED_QUOTE;
+
+  return CMDLINE_OK;
+}
+
+CommandTree *cmdline_lex(const char *cmdline)
+{
+  CommandTree *tree = (CommandTree *)malloc(sizeof(CommandTree));
+  LexerContext context; 
+
+  tree->strings = buffer_alloc();
+  szlist_init(&tree->tokens, NULL);
+
+  context.strings = tree->strings;
+  context.tokens = &tree->tokens;
+
+  tree->status = lexer_split(&context, cmdline);
 
   return tree;
 }
 
-void cmdline_parse(CommandTree *tree)
-{
-}
-
 void cmdline_free(CommandTree *tree)
 {
-  buffer_free(tree->stringdata);
+  buffer_free(tree->strings);
   szlist_destroy(&tree->tokens);
+
   free(tree);
 }
 
