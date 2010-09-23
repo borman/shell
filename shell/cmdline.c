@@ -15,7 +15,16 @@
  * Lexing is performed in 2 passes:
  * 1) make a chain of 0-separated strings
  * 2) make a list of strings
- */
+ *
+ * Implemented grammar features:
+ * - enclosing verbatim strings in double quotes
+ * - escaping symbols in quoted string and plain text ('\' + symbol) -> symbol
+ * - separating single-char operators in their own tokens
+ */ 
+
+/* character class tests */
+#define is_simple_operator(c) ((c)==';' || (c)=='<' || (c)=='(' || (c)==')')
+#define is_double_operator(c) ((c)=='>' || (c)=='|' || (c)=='&')
 
 typedef enum
 {
@@ -23,7 +32,8 @@ typedef enum
   ST_WORD,
   ST_QUOTE,
   ST_ESCAPE,
-  ST_QUOTE_ESCAPE
+  ST_QUOTE_ESCAPE,
+  ST_OPERATOR
 } LEXER_STATE;
 
 /* Lexer FSM main loop */
@@ -32,13 +42,33 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
   LEXER_STATE state = ST_WHITESPACE;
   const size_t length = strlen(src);
   size_t i;
+  char op = 0;
 
   /* terminating zero is handled like a normal character */
   for (i=0; i<length+1; i++)
   {
     const char c = src[i];
+
     switch (state)
     {
+      case ST_OPERATOR:
+        state = ST_WHITESPACE;
+        if (c==op)
+        {
+          /* double operator */
+          buffer_putchar(tokens, op);
+          buffer_putchar(tokens, op);
+          buffer_putchar(tokens, '\0');
+          break;
+        }
+        else
+        {
+          /* single operator */
+          buffer_putchar(tokens, op);
+          buffer_putchar(tokens, '\0');
+        }
+        /* no break (intended) -- fall back to whitespace case */
+
       case ST_WHITESPACE:
         if (c=='"') /* start a quoted string, new token */
         {
@@ -47,6 +77,18 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
         else if (c=='\\') /* start escape-sequence, new token */
         {
           state = ST_ESCAPE;
+        }
+        else if (is_simple_operator(c))
+        {
+          /* a new token for operator */
+          buffer_putchar(tokens, c);
+          buffer_putchar(tokens, '\0');
+        }
+        else if (is_double_operator(c))
+        {
+          state = ST_OPERATOR;
+
+          op = c;
         }
         else if (c!='\0' && !isspace(c)) /* start a new token */
         {
@@ -87,6 +129,22 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
         else if (c=='\\') /* start escape-sequence */
         {
           state = ST_ESCAPE; 
+        }
+        else if (is_simple_operator(c))
+        {
+          state = ST_WHITESPACE;
+
+          /* a new token for operator */
+          buffer_putchar(tokens, '\0');
+          buffer_putchar(tokens, c);
+          buffer_putchar(tokens, '\0');
+        }
+        else if (is_double_operator(c))
+        {
+          state = ST_OPERATOR;
+
+          buffer_putchar(tokens, '\0');
+          op = c;
         }
         else /* append a char to token */
         {
@@ -149,23 +207,23 @@ static void lexer_make_list(SzList *list, const Buffer *strings)
 
 /* ==== */
 
-CommandTree *cmdline_parse(const char *cmdline)
+Program *cmdline_parse(const char *cmdline)
 {
-  CommandTree *tree = (CommandTree *)malloc(sizeof(CommandTree));
+  Program *prog = (Program *)malloc(sizeof(Program));
 
-  tree->strings = buffer_alloc();
+  prog->strings = buffer_alloc();
 
-  tree->status = lexer_split(tree->strings, cmdline);
-  lexer_make_list(&tree->tokens, tree->strings);
+  prog->status = lexer_split(prog->strings, cmdline);
+  lexer_make_list(&prog->tokens, prog->strings);
 
-  return tree;
+  return prog;
 }
 
-void cmdline_free(CommandTree *tree)
+void cmdline_free(Program *prog)
 {
-  buffer_free(tree->strings);
-  szlist_destroy(&tree->tokens);
+  buffer_free(prog->strings);
+  szlist_destroy(&prog->tokens);
 
-  free(tree);
+  free(prog);
 }
 

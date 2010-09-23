@@ -19,7 +19,7 @@ typedef struct
 
   /* private */
   Buffer *strings;
-} CommandTree;
+} Program;
 
 /** 
  * Perform lexical parsing of cmdline.
@@ -30,11 +30,11 @@ typedef struct
  * result.tokens is set to a list of tokens.
  * result.status indicates if there were errors.
  */
-CommandTree *cmdline_parse(const char *cmdline);
+Program *cmdline_parse(const char *cmdline);
 /**
  * Free resources allocated for parsed command line string.
  */
-void cmdline_free(CommandTree *tree);
+void cmdline_free(Program *tree);
 
 #endif /* CMDLINE_H */
 

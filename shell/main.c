@@ -10,6 +10,9 @@ int main(int argc, char **argv)
   READLINE_RESULT result;
   char *prompt;
 
+  /*
+   * -q argument to omit printing prompt
+   */
   if (argc>1 && !strcmp(argv[1], "-q"))
     prompt = NULL;
   else
@@ -17,15 +20,15 @@ int main(int argc, char **argv)
   
   do
   {
-    CommandTree *tree;
+    Program *prog;
 
     result = readline(prompt, linebuffer); 
-    tree = cmdline_parse(linebuffer->c_str);
+    prog = cmdline_parse(linebuffer->c_str);
 
-    switch (tree->status)
+    switch (prog->status)
     {
       case CMDLINE_OK:
-        debug_dump_szlist(tree->tokens.root);
+        debug_dump_szlist(prog->tokens.root);
         break;
 
       case CMDLINE_LEX_UNBALANCED_QUOTE:
@@ -37,7 +40,7 @@ int main(int argc, char **argv)
         break;
     }
 
-    cmdline_free(tree); 
+    cmdline_free(prog); 
 
   } while (result != READLINE_EOF);
 
