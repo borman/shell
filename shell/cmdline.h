@@ -13,9 +13,8 @@ typedef enum
 typedef struct 
 {
   /* public */
-  /* Lexer output */
-  SzList tokens;
-  CMDLINE_PARSER_STATUS status;
+  CMDLINE_PARSER_STATUS status; /* error code */
+  SzList tokens; /* Lexer output */
 
   /* private */
   Buffer *strings;
@@ -25,10 +24,12 @@ typedef struct
  * Perform lexical parsing of cmdline.
  * 
  * Returns a non-NULL pointer in any case.
+ *
+ * TODO: Only lexing is performed now.
  * result.tokens is set to a list of tokens.
  * result.status indicates if there were errors.
  */
-CommandTree *cmdline_lex(const char *cmdline);
+CommandTree *cmdline_parse(const char *cmdline);
 /**
  * Free resources allocated for parsed command line string.
  */

@@ -7,7 +7,8 @@ READLINE_RESULT readline(const char *prompt, Buffer *buf)
   
   buffer_clear(buf);
 
-  printf("%s ", prompt);
+  if (prompt != NULL)
+    printf("%s ", prompt);
   while (1) 
   {
     c = getchar();

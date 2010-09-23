@@ -37,7 +37,6 @@ void buffer_clear(Buffer *buffer);
 /* Append a char to the end of the buffer */
 void buffer_putchar(Buffer *buffer, char c);
 /* Assign buffer contents to a C string */
-/* TODO: Not implemented yet */
 void buffer_copy(Buffer *dest, const char *src);
 
 /* Retrieve a pointer to buffer's terminating zero.

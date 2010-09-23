@@ -11,6 +11,10 @@
  *
  * Tokens are stored internally as a sequence of 0-terminated strings in a 
  * single buffer.
+ *
+ * Lexing is performed in 2 passes:
+ * 1) make a chain of 0-separated strings
+ * 2) make a list of strings
  */
 
 typedef enum
@@ -20,32 +24,8 @@ typedef enum
   ST_QUOTE
 } LEXER_STATE;
 
-typedef struct 
-{
-  Buffer *strings;
-  SzList *tokens;
-} LexerContext;
-
-/* Lexer operations to clean up FSM inner code */
-
-static void lexer_begin_word(LexerContext *context)
-{
-  SzListNode *node = szlist_node_alloc(buffer_end(context->strings));
-  szlist_append(context->tokens, node);
-}
-
-static void lexer_end_word(LexerContext *context)
-{
-  buffer_putchar(context->strings, '\0'); /* separate tokens */
-}
-
-static void lexer_append_char(LexerContext *context, char c)
-{
-  buffer_putchar(context->strings, c);
-}
-
 /* Lexer FSM main loop */
-static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
+static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
 {
   LEXER_STATE state = ST_WHITESPACE;
   const size_t length = strlen(src);
@@ -61,15 +41,12 @@ static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
         if (c=='"') /* start a quoted string, new token */
         {
           state = ST_QUOTE;
-
-          lexer_begin_word(context);
         }
         else if (c!='\0' && !isspace(c)) /* start a new token */
         {
           state = ST_WORD;
 
-          lexer_begin_word(context);
-          lexer_append_char(context, c);
+          buffer_putchar(tokens, c);
         }
         /* whitespace -> ignore */
         break;
@@ -81,7 +58,7 @@ static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
         } 
         else if (c!='\0') /* append a char from inside quotes to token */
         {
-          lexer_append_char(context, c);
+          buffer_putchar(tokens, c);
         }
         /* '\0' -> ignore (will set error flag later) */
         break;
@@ -91,7 +68,7 @@ static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
         {
           state = ST_WHITESPACE;
 
-          lexer_end_word(context);
+          buffer_putchar(tokens, '\0');
         }
         else if (c=='"') /* start a quoted string */
         {
@@ -99,7 +76,7 @@ static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
         }
         else /* append a char to token */
         {
-          lexer_append_char(context, c);
+          buffer_putchar(tokens, c);
         }
     }    
   }
@@ -111,18 +88,32 @@ static CMDLINE_PARSER_STATUS lexer_split(LexerContext *context, const char *src)
   return CMDLINE_OK;
 }
 
-CommandTree *cmdline_lex(const char *cmdline)
+/* Make a list out of a chain of strings.
+ * *list is considered uninitialized */
+static void lexer_make_list(SzList *list, const Buffer *strings)
+{
+  size_t pos = 0;
+
+  szlist_init(list, NULL);
+  while (pos<strings->length)
+  {
+    size_t delta = strlen(strings->c_str+pos);
+
+    szlist_append(list, szlist_node_alloc(strings->c_str+pos));
+    pos += delta+1;
+  }
+}
+
+/* ==== */
+
+CommandTree *cmdline_parse(const char *cmdline)
 {
   CommandTree *tree = (CommandTree *)malloc(sizeof(CommandTree));
-  LexerContext context; 
 
   tree->strings = buffer_alloc();
-  szlist_init(&tree->tokens, NULL);
 
-  context.strings = tree->strings;
-  context.tokens = &tree->tokens;
-
-  tree->status = lexer_split(&context, cmdline);
+  tree->status = lexer_split(tree->strings, cmdline);
+  lexer_make_list(&tree->tokens, tree->strings);
 
   return tree;
 }

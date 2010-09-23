@@ -15,7 +15,9 @@ typedef enum
  * end of file.
  *
  * Result is stored in buffer.
- * Buffer MUST be pre-allocaated. Buffer contents will be erased.
+ * Buffer MUST be pre-allocated. Buffer contents will be erased.
+ *
+ * If prompt is NULL, it is not printed.
  */
 READLINE_RESULT readline(const char *prompt, Buffer *buf);
 
