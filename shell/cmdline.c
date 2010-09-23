@@ -21,7 +21,9 @@ typedef enum
 {
   ST_WHITESPACE,
   ST_WORD,
-  ST_QUOTE
+  ST_QUOTE,
+  ST_ESCAPE,
+  ST_QUOTE_ESCAPE
 } LEXER_STATE;
 
 /* Lexer FSM main loop */
@@ -42,6 +44,10 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
         {
           state = ST_QUOTE;
         }
+        else if (c=='\\') /* start escape-sequence, new token */
+        {
+          state = ST_ESCAPE;
+        }
         else if (c!='\0' && !isspace(c)) /* start a new token */
         {
           state = ST_WORD;
@@ -56,6 +62,10 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
         {
           state = ST_WORD;
         } 
+        else if (c=='\\') /* start escape-sequence */
+        {
+          state = ST_QUOTE_ESCAPE;
+        }
         else if (c!='\0') /* append a char from inside quotes to token */
         {
           buffer_putchar(tokens, c);
@@ -74,18 +84,51 @@ static CMDLINE_PARSER_STATUS lexer_split(Buffer *tokens, const char *src)
         {
           state = ST_QUOTE;
         }
+        else if (c=='\\') /* start escape-sequence */
+        {
+          state = ST_ESCAPE; 
+        }
         else /* append a char to token */
         {
           buffer_putchar(tokens, c);
         }
+        break;
+
+      case ST_ESCAPE:
+        if (c!='\0')
+        {
+          state = ST_WORD;
+
+          buffer_putchar(tokens, c);
+        }
+        /* '\0' -> ignore (will set error flag later) */
+        break;
+
+      case ST_QUOTE_ESCAPE:
+        if (c!='\0')
+        {
+          state = ST_QUOTE;
+
+          buffer_putchar(tokens, c);
+        }
+        /* '\0' -> ignore (will set error flag later) */
+        break;
     }    
   }
 
   /* Detect lexing errors */
-  if (state == ST_QUOTE)
-    return CMDLINE_LEX_UNBALANCED_QUOTE;
+  switch (state)
+  {
+    case ST_QUOTE:
+      return CMDLINE_LEX_UNBALANCED_QUOTE;
 
-  return CMDLINE_OK;
+    case ST_ESCAPE:
+    case ST_QUOTE_ESCAPE:
+      return CMDLINE_LEX_UNFINISHED_ESCAPE;
+
+    default:
+      return CMDLINE_OK;
+  }
 }
 
 /* Make a list out of a chain of strings.

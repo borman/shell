@@ -31,6 +31,10 @@ int main(int argc, char **argv)
       case CMDLINE_LEX_UNBALANCED_QUOTE:
         printf("Syntax error: Unbalanced quotes\n");
         break;
+
+      case CMDLINE_LEX_UNFINISHED_ESCAPE:
+        printf("Syntax error: Unfinished escape-sequence\n");
+        break;
     }
 
     cmdline_free(tree); 
