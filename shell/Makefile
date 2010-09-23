@@ -1,5 +1,4 @@
 SOURCES = $(wildcard *.c)
-OBJECTS = $(subst .c,.o,$(SOURCES))
 
 TARGET = shell
 
