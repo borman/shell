@@ -19,7 +19,7 @@ typedef enum
  *
  * If prompt is NULL, it is not printed.
  */
-READLINE_RESULT readline(const char *prompt, Buffer *buf);
+READLINE_RESULT readline_run(const char *prompt, Buffer *buf);
 
 #endif /* READLINE_H */
 

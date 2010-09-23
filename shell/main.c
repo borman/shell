@@ -16,13 +16,13 @@ int main(int argc, char **argv)
   if (argc>1 && !strcmp(argv[1], "-q"))
     prompt = NULL;
   else
-    prompt = "model_shell$";
+    prompt = "model_shell> ";
   
   do
   {
     Program *prog;
 
-    result = readline(prompt, linebuffer); 
+    result = readline_run(prompt, linebuffer); 
     prog = cmdline_parse(linebuffer->c_str);
 
     switch (prog->status)
