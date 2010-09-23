@@ -1,0 +1,28 @@
+digraph PSM {
+
+ST_WHITESPACE [label="\N\n\nWhitespace character"];
+ST_WORD [label="\N\n\nInside a token"];
+ST_QUOTE [label="\N\n\nInside a quoted string"];
+ST_ESCAPE [label="\N\n\nEscape sequence in a token"];  
+ST_QUOTE_ESCAPE [label="\N\n\nEscape sequence in a quoted string"];  
+ST_OPERATOR [label="\N\n\nBeginning of a double-char operator"];
+
+ST_WHITESPACE -> ST_WORD [label="<any>"];
+ST_WHITESPACE -> ST_QUOTE [label="'\"'"];
+ST_WHITESPACE -> ST_ESCAPE [label="'\\'"];
+ST_WHITESPACE -> ST_OPERATOR [label="'&|>'"];
+
+ST_WORD -> ST_QUOTE [label="'\"'"];
+ST_WORD -> ST_WHITESPACE [label="<space>"];
+ST_WORD -> ST_ESCAPE [label="'\\'"];
+ST_WORD -> ST_OPERATOR [label="'&|>'"];
+
+ST_QUOTE -> ST_WORD [label="'\"'"];
+ST_QUOTE -> ST_QUOTE_ESCAPE [label="'\\'"];
+
+ST_ESCAPE -> ST_WORD [label="<any>"];
+
+ST_QUOTE_ESCAPE -> ST_QUOTE [label="<any>"];
+
+ST_OPERATOR -> ST_WHITESPACE;
+}
