@@ -1,7 +1,7 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 
-#include <sys/types.h>
+#include <stddef.h>
 
 /**
  * Buffer: a dynamic-allocated resizable string.
