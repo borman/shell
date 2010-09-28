@@ -11,5 +11,7 @@ ifeq ($(USE_GNU_READLINE), 1)
 	LDFLAGS += -lreadline
 endif
 
+CFLAGS += -DUSE_TERMINAL_COLORS
+
 # Default rules
 include ../mkspecs/rules.mk

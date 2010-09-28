@@ -1,8 +1,14 @@
 #include "readline.h"
 #include "cmdline.h"
 #include "debug.h"
+#include "colors.h"
 #include <stdio.h>
 #include <string.h>
+
+static void print_error(const char *error_class, const char *error_desc)
+{
+  fprintf(stderr, TERM_RED "%s" TERM_NORMAL ": %s\n", error_class, error_desc);
+}
 
 int main(int argc, char **argv)
 {
@@ -16,7 +22,7 @@ int main(int argc, char **argv)
   if (argc>1 && !strcmp(argv[1], "-q"))
     prompt = NULL;
   else
-    prompt = "model_shell> ";
+    prompt = TERM_GREEN "model_shell> " TERM_NORMAL;
   
   do
   {
@@ -32,11 +38,11 @@ int main(int argc, char **argv)
         break;
 
       case CMDLINE_LEX_UNBALANCED_QUOTE:
-        printf("Syntax error: Unbalanced quotes\n");
+        print_error("Syntax error", "Unbalanced quote");
         break;
 
       case CMDLINE_LEX_UNFINISHED_ESCAPE:
-        printf("Syntax error: Unfinished escape-sequence\n");
+        print_error("Syntax error", "Unfinished escape-sequence");
         break;
     }
 
