@@ -8,7 +8,7 @@
 
 static void print_error(const char *error_class, const char *error_desc)
 {
-  fprintf(stderr, TERM_RED "%s" TERM_NORMAL ": %s\n", error_class, error_desc);
+  fprintf(stderr, TERM_FG_RED "%s" TERM_NORMAL ": %s\n", error_class, error_desc);
 }
 
 int main(int argc, char **argv)
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   if (argc>1 && !strcmp(argv[1], "-q"))
     prompt = NULL;
   else
-    prompt = TERM_GREEN "model_shell> " TERM_NORMAL;
+    prompt = TERM_FG_GREEN TERM_BOLD "model_shell> " TERM_NORMAL;
   
   do
   {
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         break;
 
       case CMDLINE_PARSER_ERROR:
-        printf("Unknown syntax error\n");
+        print_error("Parser error", "unknown");
         break;
     }
 
