@@ -1,4 +1,5 @@
 #include <stdlib.h>
+
 #include "list.h"
 
 void list_init(List *list, ListNode *list_data)

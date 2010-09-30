@@ -1,6 +1,7 @@
-#include "buffer.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "buffer.h"
 
 /* Size of the buffer, allocated at its creation */
 const size_t BUF_ALLOC_BASE = 16;

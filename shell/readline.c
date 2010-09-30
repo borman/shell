@@ -1,10 +1,11 @@
-#include "readline.h"
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "readline.h"
 
 #ifdef USE_GNU_READLINE
 
 #include <readline/readline.h>
-#include <stdlib.h>
 
 READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
 {

@@ -1,9 +1,10 @@
+#include <stdio.h>
+#include <string.h>
+
 #include "readline.h"
 #include "cmdline.h"
 #include "debug.h"
 #include "colors.h"
-#include <stdio.h>
-#include <string.h>
 
 static void print_error(const char *error_class, const char *error_desc)
 {

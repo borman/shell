@@ -1,4 +1,5 @@
 #include <stdio.h>
+
 #include "debug.h"
 
 void debug_dump_szlist(ListNode *node)
