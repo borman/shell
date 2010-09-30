@@ -1,11 +1,11 @@
-#include "debug.h"
 #include <stdio.h>
+#include "debug.h"
 
-void debug_dump_szlist(SzListNode *node)
+void debug_dump_szlist(ListNode *node)
 {
   while (node != NULL)
   {
-    printf("\"%s\"\n", node->c_str==NULL? "<nil>": node->c_str);
+    printf("\"%s\"\n", node->d.c_str==NULL? "<nil>": node->d.c_str);
     node = node->next;
   }
 }

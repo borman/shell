@@ -1,7 +1,7 @@
-#include "szlist.h"
 #include <stdlib.h>
+#include "list.h"
 
-void szlist_init(SzList *list, SzListNode *list_data)
+void list_init(List *list, ListNode *list_data)
 {
   list->root = list_data;
   list->tail = list_data;
@@ -12,18 +12,18 @@ void szlist_init(SzList *list, SzListNode *list_data)
       list->tail = list->tail->next;
 }
 
-void szlist_destroy(SzList *list)
+void list_destroy(List *list)
 {
-  SzListNode *node = list->root;
+  ListNode *node = list->root;
   while (node != NULL)
   {
-    SzListNode *t = node;
+    ListNode *t = node;
     node = node->next;
-    szlist_node_free(t);
+    list_node_free(t);
   }
 }
 
-void szlist_append(SzList *list, SzListNode *node)
+void list_append(List *list, ListNode *node)
 {
   if (list->root == NULL)
   {
@@ -42,17 +42,17 @@ void szlist_append(SzList *list, SzListNode *node)
       list->tail = list->tail->next;
 }
 
-SzListNode *szlist_node_alloc(char *default_str)
+ListNode *list_node_alloc(void *default_data)
 {
-  SzListNode *node = (SzListNode *)malloc(sizeof(SzListNode));
+  ListNode *node = (ListNode *)malloc(sizeof(ListNode));
 
-  node->c_str = default_str;
+  node->d.data = default_data;
   node->next = NULL;
 
   return node;
 }
 
-void szlist_node_free(SzListNode *node)
+void list_node_free(ListNode *node)
 {
   free(node);
 }

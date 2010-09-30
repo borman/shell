@@ -44,6 +44,10 @@ int main(int argc, char **argv)
       case CMDLINE_LEX_UNFINISHED_ESCAPE:
         print_error("Syntax error", "Unfinished escape-sequence");
         break;
+
+      case CMDLINE_PARSER_ERROR:
+        printf("Unknown syntax error\n");
+        break;
     }
 
     cmdline_free(prog); 
