@@ -6,6 +6,6 @@
 /**
  * Print contents of a string list as a column 
  */
-void debug_dump_szlist(ListNode *node);
+void debug_dump_szlist(List list);
 
 #endif /* DEBUG_H */

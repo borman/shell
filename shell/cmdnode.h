@@ -28,20 +28,26 @@ typedef struct CommandNodeRef
 
   char *command;
 
+  List arguments;
   char **argv;
 
   List input_files;
   List output_files;
   List output_append_files;
 
-  ListNode *expression;
+  List expression;
 
   struct CommandNodeRef *op1;
   struct CommandNodeRef *op2;
 } CommandNode;
 
 
-CommandNode *cmdnode_alloc(CommandNodeType type);
+CommandNode *cmdnode_command(char *command);
+CommandNode *cmdnode_operator(char *operator);
+CommandNode *cmdnode_subshell(List expression);
+
+void cmdnode_add_redirection(CommandNode *node, char *type, char *filename);
+
 void cmdnode_free(CommandNode *node);
 void cmdnode_free_recursive(CommandNode *root);
 

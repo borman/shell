@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     switch (prog->status)
     {
       case CMDLINE_OK:
-        debug_dump_szlist(prog->tokens.root);
         break;
 
       case CMDLINE_LEX_UNBALANCED_QUOTE:

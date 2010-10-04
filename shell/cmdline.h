@@ -3,6 +3,7 @@
 
 #include "list.h"
 #include "buffer.h"
+#include "cmdnode.h"
 
 typedef enum 
 {
@@ -22,6 +23,7 @@ typedef struct
 
   /* private */
   Buffer *strings;
+  CommandNode *tree;
 } Program;
 
 /** 

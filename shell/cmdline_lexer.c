@@ -41,10 +41,11 @@ typedef enum
 } LexerState;
 
 /* Lexer FSM main loop */
-CmdlineParserStatus lexer_split(Buffer *tokens, const char *src)
+Buffer *lexer_split(const char *src, CmdlineParserStatus *result)
 {
   LexerState state = ST_WHITESPACE;
   const size_t length = strlen(src);
+  Buffer *tokens = buffer_alloc();
   size_t i;
   char op = 0;
 
@@ -182,15 +183,22 @@ CmdlineParserStatus lexer_split(Buffer *tokens, const char *src)
   switch (state)
   {
     case ST_QUOTE:
-      return CMDLINE_LEX_UNBALANCED_QUOTE;
+      *result = CMDLINE_LEX_UNBALANCED_QUOTE;
+      goto L_ERROR;
 
     case ST_ESCAPE:
     case ST_QUOTE_ESCAPE:
-      return CMDLINE_LEX_UNFINISHED_ESCAPE;
+      *result = CMDLINE_LEX_UNFINISHED_ESCAPE;
+      goto L_ERROR;
 
     default:
-      return CMDLINE_OK;
+      *result = CMDLINE_OK;
+      return tokens;
   }
+
+L_ERROR:
+  buffer_free(tokens);
+  return NULL;
 }
 
 

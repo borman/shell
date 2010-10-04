@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "cmdline_parser.h"
+#include "colors.h"
 
 /**
  * Command line parser
@@ -28,30 +29,6 @@ typedef enum
   TC_TEXT
 } TokenClass;
 
-typedef enum
-{
-  TT_NULL,
-  TT_PIPE,
-  TT_CHAIN,
-  TT_BACKGROUND,
-  TT_AND,
-  TT_OR,
-  TT_REDIRECT_INPUT,
-  TT_REDIRECT_OUTPUT,
-  TT_REDIRECT_OUTPUT_APPEND,
-  TT_SUBSHELL_BEGIN,
-  TT_SUBSHELL_END,
-  TT_TEXT
-} TokenType;
-
-typedef struct 
-{
-  TokenType type;
-  TokenClass class;
-  char *str;
-  ListNode *node;
-} Token;
-
 typedef struct
 {
   List expr_stack;
@@ -59,9 +36,7 @@ typedef struct
 
   CommandNode *current_command;
   
-  ListNode *args_begin;
-  unsigned int args_n;
-  TokenType redirect_type;
+  char *redirect_type;
 } ParserContext;
 
 
@@ -69,12 +44,12 @@ typedef struct
  * FSM states
  */
 
-typedef ParserState (*ParserStateHandler) (ParserContext *ctx, Token *token);
+typedef ParserState (*ParserStateHandler) (ParserContext *ctx, char *token);
 
-static ParserState state_command(ParserContext *ctx, Token *token);
-static ParserState state_arguments(ParserContext *ctx, Token *token);
-static ParserState state_redirections(ParserContext *ctx, Token *token);
-static ParserState state_redirect_filename(ParserContext *ctx, Token *token);
+static ParserState state_command(ParserContext *ctx, char *token);
+static ParserState state_arguments(ParserContext *ctx, char *token);
+static ParserState state_redirections(ParserContext *ctx, char *token);
+static ParserState state_redirect_filename(ParserContext *ctx, char *token);
 
 
 /**
@@ -82,7 +57,6 @@ static ParserState state_redirect_filename(ParserContext *ctx, Token *token);
  */
 
 static TokenClass token_class(const char *token);
-static TokenType token_type(const char *token);
 
 
 /** 
@@ -91,9 +65,9 @@ static TokenType token_type(const char *token);
 
 static void begin_command(ParserContext *ctx, char *command);
 static void end_command(ParserContext *ctx);
-static void add_argument(ParserContext *ctx, ListNode *arg);
+static void add_argument(ParserContext *ctx, char *arg);
 static void add_redirection(ParserContext *ctx, char *filename);
-static void add_operator(ParserContext *ctx, Token *token);
+static void add_operator(ParserContext *ctx, char *token);
 static void open_subshell(ParserContext *ctx);
 static int close_subshell(ParserContext *ctx);
 
@@ -101,49 +75,51 @@ static int close_subshell(ParserContext *ctx);
  * Parser main loop
  */
 
-static ParserState parser_process_token(ParserContext *ctx, ParserState state,
-                                        char *token_str, ListNode *token_node);
+static ParserState parser_process_token(ParserContext *ctx, 
+                                        ParserState state, char *token_str);
 
-CmdlineParserStatus parser_buildtree(CommandNode **root, ListNode *tokens)
+CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
 {
   ParserContext ctx = 
   {
-    .expr_stack = {NULL, NULL},
-    .current_expr = {NULL, NULL},
+    .expr_stack = NULL,
+    .current_expr = NULL,
 
     .current_command = NULL,
-
-    .args_begin = NULL,
-    .args_n = 0
   };
 
   ParserState state = ST_COMMAND;  
 
   /* Open top-level subshell */
-  state = parser_process_token(&ctx, state, "(", NULL);
+  state = parser_process_token(&ctx, state, "(");
 
   while (tokens != NULL && state != ST_ERROR)
   {
-    state = parser_process_token(&ctx, state, tokens->d.c_str, tokens);
+    state = parser_process_token(&ctx, state, list_head_str(tokens));
 
     tokens = tokens->next;
   }
 
   /* Close top-level subshell */
   if (state != ST_ERROR)
-    state = parser_process_token(&ctx, state, ")", NULL);
+    state = parser_process_token(&ctx, state, ")");
 
-  if (state != ST_ERROR)
-    return CMDLINE_OK;
+  if (state != ST_ERROR && state != ST_REDIRECT_FILENAME)
+  {
+    *status = CMDLINE_OK;
+    return ctx.current_command;
+  }
   else
   {
     fprintf(stderr, "parser fail\n");
-    return CMDLINE_PARSER_ERROR;
+    *status = CMDLINE_PARSER_ERROR;
+    return NULL;
+    /* FIXME: memory leak */
   }
 }
 
-static ParserState parser_process_token(ParserContext *ctx, ParserState state,
-                                        char *token_str, ListNode *token_node)
+static ParserState parser_process_token(ParserContext *ctx, 
+                                        ParserState state, char *token)
 {
   /* Link states to their handlers */
   static const ParserStateHandler state_handlers[] = {
@@ -156,18 +132,11 @@ static ParserState parser_process_token(ParserContext *ctx, ParserState state,
        */
   };
 
-  Token token = 
-  {
-    .node = token_node,
-    .str = token_str,
-    .type = token_type(token_str),
-    .class = token_class(token_str)
-  };
-
   /* debug trace */
-  fprintf(stderr, "%d | <\"%s\" %d %d>\n", state, token.str, token.class, token.type);
+  fprintf(stderr, TERM_FG_CYAN TERM_BOLD "%d | <\"%s\" %d>\n" TERM_NORMAL,
+          state, token, token_class(token));
 
-  return state_handlers[state](ctx, &token);
+  return state_handlers[state](ctx, token);
 }
 
 
@@ -176,16 +145,22 @@ static ParserState parser_process_token(ParserContext *ctx, ParserState state,
  */
 
 /* Expecting a command to start */
-static ParserState state_command(ParserContext *ctx, Token *token)
+static ParserState state_command(ParserContext *ctx, char *token)
 {
-  switch (token->class)
+  switch (token_class(token))
   {
     case TC_SUBSHELL_BEGIN:
       open_subshell(ctx);
       return ST_COMMAND;
 
+    case TC_SUBSHELL_END:
+      if (close_subshell(ctx))
+        return ST_REDIRECTIONS;
+      else
+        return ST_ERROR;
+
     case TC_TEXT:
-      begin_command(ctx, token->str);
+      begin_command(ctx, token);
       return ST_ARGUMENTS;
 
     default:
@@ -194,47 +169,32 @@ static ParserState state_command(ParserContext *ctx, Token *token)
 }
 
 /* Just read a command, expecting args or command end */
-static ParserState state_arguments(ParserContext *ctx, Token *token)
+static ParserState state_arguments(ParserContext *ctx, char *token)
 {
-  switch (token->class)
+  if (token_class(token) == TC_TEXT)
   {
     /* is an argument */
-    case TC_TEXT:
-      add_argument(ctx, token->node);
-      return ST_ARGUMENTS;
-
-    /* otherwise, identical to ST_REDIRECTIONS */
-    default:
-      return state_redirections(ctx, token);
+    add_argument(ctx, token);
+    return ST_ARGUMENTS;
   }
+
+  /* otherwise, identical to ST_REDIRECTIONS */
+  return state_redirections(ctx, token);
 }
 
-static ParserState state_redirections(ParserContext *ctx, Token *token)
+static ParserState state_redirections(ParserContext *ctx, char *token)
 {
-  switch (token->class)
+  switch (token_class(token))
   {
     case TC_REDIRECT:
-      switch (token->type)
-      {
-        case TT_REDIRECT_INPUT:
-        case TT_REDIRECT_OUTPUT:
-        case TT_REDIRECT_OUTPUT_APPEND:
-          fprintf(stderr, "expect redirection file\n");
-          ctx->redirect_type = token->type;
-          return ST_REDIRECT_FILENAME;
-
-          /* impossible */
-        default: 
-          return ST_ERROR;
-      }
+      ctx->redirect_type = token;
+      return ST_REDIRECT_FILENAME;
 
     case TC_OPERATOR:
-      end_command(ctx);
       add_operator(ctx, token);
       return ST_COMMAND;
 
     case TC_SUBSHELL_END:
-      end_command(ctx);
       if (close_subshell(ctx))
         return ST_REDIRECTIONS;
       else
@@ -246,12 +206,12 @@ static ParserState state_redirections(ParserContext *ctx, Token *token)
 }
 
 /* Expecting a filename */
-static ParserState state_redirect_filename(ParserContext *ctx, Token *token)
+static ParserState state_redirect_filename(ParserContext *ctx, char *token)
 {
-  switch (token->class)
+  switch (token_class(token))
   {
     case TC_TEXT:
-      add_redirection(ctx, token->str);
+      add_redirection(ctx, token);
       return ST_REDIRECTIONS;
 
     default:
@@ -264,147 +224,59 @@ static ParserState state_redirect_filename(ParserContext *ctx, Token *token)
  * FSM utility functions. Implementation.
  */
 
-static void begin_command(ParserContext *ctx, char *command)
+static void begin_command(ParserContext *ctx, char *command_str)
 {
-  CommandNode *node = cmdnode_alloc(CN_COMMAND);
-  node->command = command;
+  CommandNode *command = cmdnode_command(command_str);
 
-  ctx->args_begin = NULL;
-  ctx->args_n = 0;
+  ctx->current_expr = list_push(ctx->current_expr, command);
+  ctx->current_command = command;
 
-  list_append(&ctx->current_expr, list_node_alloc(node));
-  ctx->current_command = node;
-
-  fprintf(stderr, "begin command %s\n", command);
+  fprintf(stderr, "begin command %s\n", command_str);
 }
 
-static void end_command(ParserContext *ctx)
+static void add_argument(ParserContext *ctx, char *arg)
 {
-  unsigned int argc;
-  char **argv;
-  ListNode *arg;
-  unsigned int i;
+  ctx->current_command->arguments = 
+    list_push(ctx->current_command->arguments, arg);
 
-  CommandNode *node = ctx->current_command;
-
-  if (node->type != CN_COMMAND)
-  {
-    fprintf(stderr, "ending not-a-command %d\n", node->type);
-    return;
-  }
-
-  argc = ctx->args_n + 1; /* + argv[0] */
-  argv = (char **) malloc(sizeof(char *) * (argc + 1)); /* + argv[argc+1] == NULL */
-  arg = ctx->args_begin;
-
-  argv[0] = node->command;
-  for(i=1; arg!=NULL; i++, arg=arg->next)
-    argv[i] = arg->d.c_str;
-  argv[argc] = NULL;
-
-  ctx->current_command->argv = argv;
-
-  ctx->current_command = NULL;
-  ctx->args_begin = NULL;
-  ctx->args_n = 0;
-  
-  fprintf(stderr, "end command %s\n", node->command);
-}
-
-static void add_argument(ParserContext *ctx, ListNode *arg)
-{
-  if (ctx->args_begin==NULL)
-    ctx->args_begin = arg;
-  ctx->args_n++;
-
-  fprintf(stderr, "add argument %s\n", arg->d.c_str);
+  fprintf(stderr, "add argument %s\n", arg);
 }
 
 static void add_redirection(ParserContext *ctx, char *filename)
 {
-  List *list;
-  CommandNode *node = ctx->current_command;
+  cmdnode_add_redirection(ctx->current_command, ctx->redirect_type, filename);
 
-  switch (ctx->redirect_type)
-  {
-    case TT_REDIRECT_INPUT:
-      list = &node->input_files;
-      break;
-    case TT_REDIRECT_OUTPUT:
-      list = &node->output_files;
-      break;
-    case TT_REDIRECT_OUTPUT_APPEND:
-      list = &node->output_append_files;
-      break;
-
-    default:
-      /* this shouldn't happen */
-      assert(0);
-  }
-
-  list_append(list, list_node_alloc(filename));
-
-  fprintf(stderr, "redirect %d to %s\n", ctx->redirect_type, filename);
+  fprintf(stderr, "redirect %s to %s\n", ctx->redirect_type, filename);
 }
 
-static void add_operator(ParserContext *ctx, Token *token)
+static void add_operator(ParserContext *ctx, char *operator)
 {
-  CommandNodeType cn_type;
-  CommandNode *node;
+  ctx->current_expr = list_push(ctx->current_expr, 
+      cmdnode_operator(operator));
 
-  switch (token->type)
-  {
-    case TT_PIPE:
-      cn_type = CN_PIPE;
-      break;
-    case TT_CHAIN:
-      cn_type = CN_CHAIN;
-      break;
-    case TT_AND:
-      cn_type = CN_AND;
-      break;
-    case TT_OR:
-      cn_type = CN_OR;
-      break;
-    case TT_BACKGROUND:
-      cn_type = CN_BACKGROUND;
-      break;
-
-    default:
-      /* this shouldn't happen */
-      assert(0);
-  }
-
-  node = cmdnode_alloc(cn_type);
-  node->command = token->str;
-  list_append(&ctx->current_expr, list_node_alloc(node));
-
-  fprintf(stderr, "add operator %s\n", token->str);
+  fprintf(stderr, "add operator %s\n", operator);
 }
 
 static void open_subshell(ParserContext *ctx)
 {
-  list_push(&ctx->expr_stack, list_node_alloc(ctx->current_expr.root));
-  list_init(&ctx->current_expr, NULL);
+  ctx->expr_stack = list_push(ctx->expr_stack, ctx->current_expr);
+  ctx->current_expr = EmptyList;
 
   fprintf(stderr, "open subshell\n");
 }
 
 static int close_subshell(ParserContext *ctx)
 {
-  CommandNode *node;
-  if (ctx->expr_stack.root == NULL)
+  CommandNode *subshell;
+
+  if (ctx->expr_stack == EmptyList)
     return 0;
 
-  node = cmdnode_alloc(CN_SUBSHELL);
-  node->expression = ctx->current_expr.root;
+  subshell = cmdnode_subshell(ctx->current_expr);
+  ctx->current_expr = list_head_list(ctx->expr_stack);
+  ctx->expr_stack = list_pop(ctx->expr_stack);
 
-  list_init(&ctx->current_expr, ctx->expr_stack.root->d.list);
-  list_pop(&ctx->expr_stack);
-
-  list_append(&ctx->current_expr, list_node_alloc(node));
-
-  ctx->current_command = node;
+  ctx->current_command = subshell;
 
   fprintf(stderr, "close subshell\n");
 
@@ -416,52 +288,39 @@ static int close_subshell(ParserContext *ctx)
  * Token operations. Implementation.
  */
 
-static const struct token_definition
+static const struct token_class_definition
 {
-  const char *token;
   TokenClass class;
-  TokenType type;
-} token_definitions[] = 
+  const char *tokens[6];
+} token_class_definitions[] = 
 {
-  {"|",  TC_OPERATOR, TT_PIPE},
-  {";",  TC_OPERATOR, TT_CHAIN},
-  {"&",  TC_OPERATOR, TT_BACKGROUND},
-  {"&&", TC_OPERATOR, TT_AND},
-  {"||", TC_OPERATOR, TT_OR},
-  {"<",  TC_REDIRECT, TT_REDIRECT_INPUT},
-  {">",  TC_REDIRECT, TT_REDIRECT_OUTPUT},
-  {">>", TC_REDIRECT, TT_REDIRECT_OUTPUT_APPEND},
-  {"(",  TC_SUBSHELL_BEGIN, TT_SUBSHELL_BEGIN},
-  {")",  TC_SUBSHELL_END, TT_SUBSHELL_END}
+  {TC_OPERATOR,       {"|", ";", "&", "&&", "||", NULL}},
+  {TC_REDIRECT,       {"<", ">", ">>", NULL}},
+  {TC_SUBSHELL_BEGIN, {"(", NULL}},
+  {TC_SUBSHELL_END,   {")", NULL}}
 };
-static const size_t n_token_definitions = 
-  sizeof(token_definitions)/sizeof(struct token_definition);
-
+static const size_t n_token_class_definitions = 
+  sizeof(token_class_definitions)/sizeof(struct token_class_definition);
+  
+static int str_in_set(const char *str, const char * const *set)
+{
+  size_t i;
+  for (i=0; set[i]!=NULL; i++)
+    if (!strcmp(str, set[i]))
+      return 1;
+  return 0;
+}
 
 static TokenClass token_class(const char *token)
 {
   size_t i;
-
-  if (token==NULL)
-    return TC_NULL;
   
-  for (i=0; i<n_token_definitions; i++)
-    if (!strcmp(token_definitions[i].token, token))
-      return token_definitions[i].class;
+  for (i=0; i<n_token_class_definitions; i++)
+    if (str_in_set(token, token_class_definitions[i].tokens))
+      return token_class_definitions[i].class;
+
   return TC_TEXT;
 }
 
-static TokenType token_type(const char *token)
-{
-  size_t i;
-
-  if (token==NULL)
-    return TT_NULL;
-  
-  for (i=0; i<n_token_definitions; i++)
-    if (!strcmp(token_definitions[i].token, token))
-      return token_definitions[i].type;
-  return TT_TEXT;
-}
 
 

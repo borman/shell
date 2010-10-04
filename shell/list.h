@@ -1,61 +1,26 @@
-#ifndef SZLIST_H
-#define SZLIST_H
+#ifndef LIST_H
+#define LIST_H
 
-/**
- * ListNode stores one node of a string list.
- *
- * ListNode is allocated and freed with list_node_alloc and list_node_free
- */
+#define EmptyList (NULL)
+
 typedef struct ListNodeRef
 {
-  union ListNodeData {
-    void *data;
-    char *c_str;
-    struct ListNodeRef *list;
-    struct CommandNodeRef *command;
-  } d; 
+  void *data;
   struct ListNodeRef *next;
 } ListNode;
+typedef ListNode *List;
 
-/** 
- * List stores a reference to a list to ease appending elements to it.
- *
- * Memory is allocated by caller (possibly static)
- */
-typedef struct ListRef
-{
-  ListNode *root;
-  ListNode *tail;
-} List;
+List list_push(List list, void *data);
+List list_pop(List list);
+List list_reverse(List list);
 
-/**
- * Initialize List with existing list data (possibly NULL). 
- */
-void list_init(List *list, ListNode *list_data);
-/**
- * Free all nodes in List. Strings are not freed, only discarded.
- */
-void list_destroy(List *list);
-/**
- * Append a list (or a single node) to List.
- */
-void list_append(List *list, ListNode *node);
-void list_push(List *list, ListNode *node);
-void list_pop(List *list);
+void *list_head(List list);
 
+void list_free(List list);
 
-/**
- * Allocate a new list node.
- *
- * c_str is initialized with default_str
- * next is initialized with NULL
- */
-ListNode *list_node_alloc(void *default_data);
-/**
- * Free memory used by a list node.
- * String data is not freed, only discarded.
- */
-void list_node_free(ListNode *node);
+#define list_head_str(list) ((char *)list_head(list))
+#define list_head_list(list) ((List)list_head(list))
+#define list_head_command(list) ((struct CommandNodeRef *)list_head(list))
 
-#endif /* SZLIST_H */
+#endif /* LIST_H */
 

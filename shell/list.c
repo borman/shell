@@ -1,79 +1,77 @@
 #include <stdlib.h>
+#include <assert.h>
 
 #include "list.h"
 
-void list_init(List *list, ListNode *list_data)
-{
-  list->root = list_data;
-  list->tail = list_data;
+static List list_node_alloc(void *default_data);
+static void list_node_free(List node);
 
-  /* traverse list to its end */
-  if (list->tail != NULL)
-    while (list->tail->next!=NULL)
-      list->tail = list->tail->next;
+List list_push(List list, void *data)
+{
+  List new_head = list_node_alloc(data);
+  new_head->next = list;
+  return new_head;
 }
 
-void list_destroy(List *list)
+List list_pop(List list)
 {
-  ListNode *node = list->root;
-  while (node != NULL)
+  assert(list != NULL);
+
+  void *data = list->data;
+  List head = list;
+  list = list->next;
+  list_node_free(head);
+  return list;
+}
+
+List list_reverse(List list)
+{
+  List prev = NULL;
+  while (list != NULL)
   {
-    ListNode *t = node;
-    node = node->next;
-    list_node_free(t);
+    List next = list->next;
+    list->next = prev;
+    prev = list;
+    list = next;
+  }
+  return prev;
+}
+
+
+void *list_head(List list)
+{
+  assert(list != NULL);
+
+  return list->data;
+}
+
+
+void list_free(List list)
+{
+  while (list != NULL)
+  {
+    List head = list;
+    list = list->next;
+    list_node_free(head);
   }
 }
 
-void list_append(List *list, ListNode *node)
+
+/**
+ * Node allocation
+ */
+
+static List list_node_alloc(void *default_data)
 {
-  if (list->root == NULL)
-  {
-    list->root = node;
-    list->tail = node;
-  }
-  else
-  {
-    list->tail->next = node;
-    list->tail = node;
-  }
+  List node = (List)malloc(sizeof(List));
 
-  /* traverse list to its end */
-  if (list->tail != NULL)
-    while (list->tail->next!=NULL)
-      list->tail = list->tail->next;
-}
-
-void list_push(List *list, ListNode *node)
-{
-  node->next = list->root;
-  list->root = node;
-  if (list->tail==NULL)
-    list->tail = node;
-}
-
-void list_pop(List *list)
-{
-  ListNode *tmp;
-
-  if (list->tail == list->root)
-    list->tail = NULL;
-
-  tmp = list->root;
-  list->root = list->root->next;
-  list_node_free(tmp);
-}
-
-ListNode *list_node_alloc(void *default_data)
-{
-  ListNode *node = (ListNode *)malloc(sizeof(ListNode));
-
-  node->d.data = default_data;
+  node->data = default_data;
   node->next = NULL;
 
   return node;
 }
 
-void list_node_free(ListNode *node)
+static void list_node_free(List node)
 {
   free(node);
 }

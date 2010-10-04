@@ -6,42 +6,54 @@
 #include "cmdline.h"
 #include "cmdline_lexer.h"
 #include "cmdline_parser.h"
+#include "debug.h"
 
-/* Make a list out of a chain of strings.
- * *list is considered uninitialized */
-static void make_szlist(List *list, const Buffer *strings)
+/* Make a list out of a chain of strings. */
+static List make_szlist(Buffer *strings)
 {
   size_t pos = 0;
+  List list = EmptyList;
 
-  list_init(list, NULL);
   while (pos<strings->length)
   {
     size_t delta = strlen(strings->c_str+pos);
 
-    list_append(list, list_node_alloc(strings->c_str+pos));
+    list = list_push(list, strings->c_str + pos);
     pos += delta+1;
   }
+
+  return list;
 }
 
 Program *cmdline_parse(const char *cmdline)
 {
-  Program *prog = (Program *)malloc(sizeof(Program));
-  CommandNode *tree;
+  Program *prog = (Program *)calloc(1, sizeof(Program));
 
-  prog->strings = buffer_alloc();
+  prog->strings = lexer_split(cmdline, &prog->status);
+  if (prog->status != CMDLINE_OK)
+      return prog;
 
-  prog->status = lexer_split(prog->strings, cmdline);
-  make_szlist(&prog->tokens, prog->strings);
+  prog->tokens = list_reverse(make_szlist(prog->strings));
+  debug_dump_szlist(prog->tokens);
+  prog->tree = parser_buildtree(prog->tokens, &prog->status);
+  if (prog->status != CMDLINE_OK)
+      return prog;
 
-  parser_buildtree(&tree, prog->tokens.root);
+  /* TODO: Split all flat subexpressions into subtrees
+   * prog->tree = cmdnode_unflatten(prog->tree, &prog->status);
+   */
 
   return prog;
 }
 
 void cmdline_free(Program *prog)
 {
-  buffer_free(prog->strings);
-  list_destroy(&prog->tokens);
+  if (prog->strings != NULL)
+    buffer_free(prog->strings);
+  if (prog->tokens != NULL)
+    list_free(prog->tokens);
+  if (prog->tree != NULL)
+    cmdnode_free_recursive(prog->tree);
 
   free(prog);
 }

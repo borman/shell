@@ -3,12 +3,14 @@
 
 #include "debug.h"
 
-void debug_dump_szlist(ListNode *node)
+void debug_dump_szlist(List list)
 {
-  while (node != NULL)
+  fprintf(stderr, "[ ");
+  while (list != NULL)
   {
-    fprintf(stderr, "\"%s\"\n", node->d.c_str==NULL? "<nil>": node->d.c_str);
-    node = node->next;
+    fprintf(stderr, "\"%s\", ", list_head_str(list));
+    list = list->next;
   }
+  fprintf(stderr, "]\n");
 }
 
