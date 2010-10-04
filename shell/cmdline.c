@@ -5,7 +5,7 @@
 
 #include "cmdline.h"
 #include "cmdline_lexer.h"
-/* TODO #include "cmdline_parser.h" */
+#include "cmdline_parser.h"
 
 /* Make a list out of a chain of strings.
  * *list is considered uninitialized */
@@ -26,11 +26,14 @@ static void make_szlist(List *list, const Buffer *strings)
 Program *cmdline_parse(const char *cmdline)
 {
   Program *prog = (Program *)malloc(sizeof(Program));
+  CommandNode *tree;
 
   prog->strings = buffer_alloc();
 
   prog->status = lexer_split(prog->strings, cmdline);
   make_szlist(&prog->tokens, prog->strings);
+
+  parser_buildtree(&tree, prog->tokens.root);
 
   return prog;
 }

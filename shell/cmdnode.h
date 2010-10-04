@@ -1,6 +1,8 @@
 #ifndef CMDNODE_H
 #define CMDNODE_H
 
+#include "list.h"
+
 /**
  * Command line program is represented by a binary tree
  */
@@ -26,19 +28,20 @@ typedef struct CommandNodeRef
 
   char *command;
 
-  int argc;
   char **argv;
 
-  char *input;
-  char *output;
-  char *append_output;
+  List input_files;
+  List output_files;
+  List output_append_files;
+
+  ListNode *expression;
 
   struct CommandNodeRef *op1;
   struct CommandNodeRef *op2;
 } CommandNode;
 
 
-CommandNode *cmdnode_alloc();
+CommandNode *cmdnode_alloc(CommandNodeType type);
 void cmdnode_free(CommandNode *node);
 void cmdnode_free_recursive(CommandNode *root);
 

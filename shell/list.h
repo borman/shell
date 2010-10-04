@@ -22,7 +22,7 @@ typedef struct ListNodeRef
  *
  * Memory is allocated by caller (possibly static)
  */
-typedef struct 
+typedef struct ListRef
 {
   ListNode *root;
   ListNode *tail;
@@ -40,6 +40,8 @@ void list_destroy(List *list);
  * Append a list (or a single node) to List.
  */
 void list_append(List *list, ListNode *node);
+void list_push(List *list, ListNode *node);
+void list_pop(List *list);
 
 
 /**

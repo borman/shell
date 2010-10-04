@@ -8,19 +8,20 @@ static const CommandNode empty_node =
 {
   .type = CN_NULL,
   .command = NULL,
-  .argc = 0,
   .argv = NULL,
-  .input = NULL,
-  .output = NULL,
-  .append_output = NULL,
+  .input_files = {NULL, NULL},
+  .output_files = {NULL, NULL},
+  .output_append_files = {NULL, NULL},
+  .expression = NULL,
   .op1 = NULL,
   .op2 = NULL
 };
 
-CommandNode *cmdnode_alloc()
+CommandNode *cmdnode_alloc(CommandNodeType type)
 {
   CommandNode *node = (CommandNode *) malloc(sizeof(CommandNode));
   memcpy(node, &empty_node, sizeof(CommandNode));
+  node->type = type;
 
   return node; 
 }

@@ -43,6 +43,26 @@ void list_append(List *list, ListNode *node)
       list->tail = list->tail->next;
 }
 
+void list_push(List *list, ListNode *node)
+{
+  node->next = list->root;
+  list->root = node;
+  if (list->tail==NULL)
+    list->tail = node;
+}
+
+void list_pop(List *list)
+{
+  ListNode *tmp;
+
+  if (list->tail == list->root)
+    list->tail = NULL;
+
+  tmp = list->root;
+  list->root = list->root->next;
+  list_node_free(tmp);
+}
+
 ListNode *list_node_alloc(void *default_data)
 {
   ListNode *node = (ListNode *)malloc(sizeof(ListNode));
