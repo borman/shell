@@ -1,0 +1,17 @@
+digraph FSM {
+  ST_COMMAND [label="\N\n\nExpecting a command start"];
+  ST_ARGUMENTS [label="\N\n\nCommand name just read"];
+  ST_REDIRECTIONS [label="\N\n\n"];
+  ST_REDIRECT_FILENAME [label="\N\n\n"];
+
+  ST_COMMAND -> ST_COMMAND [label="'('"];
+  ST_COMMAND -> ST_REDIRECTIONS [label="')'"];
+  ST_COMMAND -> ST_ARGUMENTS [label="text"];
+  
+  ST_ARGUMENTS -> ST_ARGUMENTS [label="text"];
+  {ST_ARGUMENTS ST_REDIRECTIONS} -> ST_REDIRECT_FILENAME [label="redirection"];
+  {ST_ARGUMENTS ST_REDIRECTIONS} -> ST_COMMAND [label="operator"];
+  {ST_ARGUMENTS ST_REDIRECTIONS} -> ST_REDIRECTIONS [label="')'"];
+
+  ST_REDIRECT_FILENAME -> ST_REDIRECTIONS [label="filename"]; 
+}
