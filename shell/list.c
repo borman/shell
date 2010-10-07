@@ -57,6 +57,17 @@ void list_free(List list)
   }
 }
 
+size_t list_size(List list)
+{
+  size_t size = 0;
+  while (list != EmptyList)
+  {
+    size++;
+    list = list->next;
+  }
+  return size;
+}
+
 
 /**
  * Node allocation
