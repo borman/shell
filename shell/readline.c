@@ -6,10 +6,17 @@
 #ifdef USE_GNU_READLINE
 
 #include <readline/readline.h>
+#include <readline/history.h>
 
 READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
 {
-  char *line = readline(prompt);
+  static int history_ready = 0;
+  char *line;
+ 
+  if (!history_ready)
+    using_history();
+
+  line = readline(prompt);
 
   if (line == NULL)
   {
@@ -17,6 +24,7 @@ READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
     return READLINE_EOF;
   }
 
+  add_history(line);
   buffer_copy(buf, line);
   free(line);
   return READLINE_NEWLINE;
