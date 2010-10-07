@@ -6,6 +6,7 @@
 #include "cmdline.h"
 #include "cmdline_lexer.h"
 #include "cmdline_parser.h"
+#include "cmdnode.h"
 #include "debug.h"
 
 /* Make a list out of a chain of strings. */
@@ -34,14 +35,18 @@ Program *cmdline_parse(const char *cmdline)
       return prog;
 
   prog->tokens = list_reverse(make_szlist(prog->strings));
-  debug_dump_szlist(prog->tokens);
+  debug_dump_szlist(stderr, prog->tokens);
+  fprintf(stderr, "\n");
+
   prog->tree = parser_buildtree(prog->tokens, &prog->status);
+  debug_dump_cmdnode(stderr, prog->tree);
+  fprintf(stderr, "\n");
+
   if (prog->status != CMDLINE_OK)
       return prog;
 
-  /* TODO: Split all flat subexpressions into subtrees
-   * prog->tree = cmdnode_unflatten(prog->tree, &prog->status);
-   */
+  /* TODO: Split all flat subexpressions into subtrees */
+  cmdnode_unflatten(prog->tree, &prog->status);
 
   return prog;
 }

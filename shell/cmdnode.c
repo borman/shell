@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "cmdnode.h"
+#include "debug.h"
 
 static const struct operator_definition
 {
@@ -80,9 +81,132 @@ void cmdnode_free_recursive(CommandNode *root)
   if (root->op2 != NULL)
     cmdnode_free_recursive(root->op2);
 
-  if (root->argv != NULL)
-    free(root->argv);
-
   free(root);
+}
+
+/**
+ * Command node tree unflattening
+ * TODO: handle incorrect input
+ */
+
+static int list_head2(List list, CommandNode **a, CommandNode **b)
+{
+  if (list==EmptyList || list->next==EmptyList)
+    return 0; /* list too small */
+
+  *a = list_head_command(list);
+  *b = list_head_command(list->next);
+  return 1;
+}
+static int list_head3(List list, CommandNode **a, CommandNode **b, CommandNode **c)
+{
+  if (list==EmptyList || list->next==EmptyList || list->next->next==EmptyList)
+    return 0; /* list too small */
+
+  *a = list_head_command(list);
+  *b = list_head_command(list->next);
+  *c = list_head_command(list->next->next);
+  return 1;
+}
+
+static List fold_list(List expression, unsigned int mask, int allow_incomplete)
+{
+  CommandNode *l, *op, *r;
+  List result = EmptyList;
+
+  fprintf(stderr, "FOLD(%#x, %d)\n", mask, allow_incomplete);
+
+  while (list_head3(expression, &l, &op, &r))
+  {
+    if (op->type & mask)
+    {
+      fprintf(stderr, "fold <%s, %#x=%s, %s>\n", l->command, op->type, op->command, r->command); 
+
+      /* expression: [L, Op, R | Tail] -> [Op | Tail]
+       */
+      op->op1 = l;
+      op->op2 = r;
+      expression = list_pop(list_pop(list_pop(expression)));
+      expression = list_push(expression, op);
+    }
+    else
+    {
+      fprintf(stderr, "fail <%s, %#x=%s, %s>\n", l->command, op->type, op->command, r->command); 
+
+      /* expression: [L, Op, R | Tail] -> [R | Tail]
+       * result:     Tail -> [Op, L | Tail]
+       */
+      expression = list_pop(list_pop(expression));
+      result = list_push(list_push(result, l), op);
+    }
+  }
+  if (allow_incomplete && list_head2(expression, &l, &op))
+  {
+    if (op->type & mask)
+    {
+      /* expression: [L, Op] -> []
+       * result:     Tail -> [(Op, L) | Tail]
+       */
+      expression = list_pop(list_pop(expression));
+      op->op1 = l;
+      result = list_push(result, op);
+    }
+  }
+  while (expression != EmptyList)
+  {
+    result = list_push(result, list_head_command(expression));
+    expression = list_pop(expression);
+  }
+
+  return list_reverse(result);
+}
+
+void cmdnode_unflatten(CommandNode *node, int *status)
+{
+  List expression;
+  const unsigned int ops_pipe = CN_PIPE;
+  const unsigned int ops_chain = CN_CHAIN | CN_BACKGROUND | CN_AND | CN_OR;
+
+  fprintf(stderr, "flatten node: ");
+  debug_dump_cmdnode(stderr, node);
+  fprintf(stderr, "\n");
+
+  if (node->type != CN_SUBSHELL)
+    return; 
+
+  expression = node->expression;
+  if (expression == EmptyList)
+    return;
+
+  fprintf(stderr, "node is a subshell: flattening\n");
+
+  while (expression != EmptyList)
+  {
+    cmdnode_unflatten(list_head_command(expression), status);
+    expression = expression->next;
+  }
+
+  fprintf(stderr, "flattened => folding\n");
+
+  expression = node->expression;
+  expression = fold_list(expression, ops_pipe, 0);
+  expression = fold_list(expression, ops_chain, 0);
+  
+  if (expression->next == EmptyList) /* folded ok */
+  {
+    fprintf(stderr, "folding success\n");
+    node->expression = EmptyList;
+    node->op1 = list_head_command(expression);
+    expression = list_pop(expression);
+  }
+  else
+  {
+    fprintf(stderr, "folding failed\n");
+    node->expression = expression;
+  }
+
+  fprintf(stderr, "flattened node: ");
+  debug_dump_cmdnode(stderr, node);
+  fprintf(stderr, "\n");
 }
 

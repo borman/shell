@@ -5,6 +5,7 @@
 
 #include "cmdline_parser.h"
 #include "colors.h"
+#include "debug.h"
 
 /**
  * Command line parser
@@ -272,8 +273,12 @@ static int close_subshell(ParserContext *ctx)
   if (ctx->expr_stack == EmptyList)
     return 0;
 
-  subshell = cmdnode_subshell(ctx->current_expr);
-  ctx->current_expr = list_head_list(ctx->expr_stack);
+  subshell = cmdnode_subshell(list_reverse(ctx->current_expr));
+  fprintf(stderr, "subshell node:\n");
+  debug_dump_cmdnode(stderr, subshell);
+  fprintf(stderr, "\n");
+
+  ctx->current_expr = list_push(list_head_list(ctx->expr_stack), subshell);
   ctx->expr_stack = list_pop(ctx->expr_stack);
 
   ctx->current_command = subshell;
