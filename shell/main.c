@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <unistd.h>
+
 #include "readline.h"
 #include "cmdline.h"
 #include "debug.h"
 #include "colors.h"
+#include "execute.h"
 
 static void print_error(const char *error_class, const char *error_desc)
 {
@@ -35,6 +38,7 @@ int main(int argc, char **argv)
     switch (prog->status)
     {
       case CMDLINE_OK:
+        execute(prog->tree, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
         break;
 
       case CMDLINE_LEX_UNBALANCED_QUOTE:
