@@ -15,10 +15,11 @@ List list_push(List list, void *data)
 
 List list_pop(List list)
 {
+  List head;
+
   assert(list != NULL);
 
-  void *data = list->data;
-  List head = list;
+  head = list;
   list = list->next;
   list_node_free(head);
   return list;
