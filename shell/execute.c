@@ -9,6 +9,7 @@
 
 static int run_sync(char *program, List arguments, int fdin, int fdout, int fderr);
 static int replace_process(char *program, List arguments, int fdin, int fdout, int fderr);
+static int redirect_stream(int fd_what, int fd_where);
 
 static int do_command(CommandNode *node, int fdin, int fdout, int fderr);
 static int do_subshell(CommandNode *node, int fdin, int fdout, int fderr);
@@ -68,9 +69,31 @@ static int do_subshell(CommandNode *node, int fdin, int fdout, int fderr)
 
 static int do_chain(CommandNode *node, int fdin, int fdout, int fderr)
 {
-  fprintf(stderr, TERM_FG_BROWN "do_chain %s -> ;\n" TERM_NORMAL, node->command);
-  execute(node->op1, fdin, fdout, fderr);
-  return execute(node->op2, fdin, fdout, fderr);
+  int retval;
+  int exec_second;
+
+  fprintf(stderr, TERM_FG_BROWN "do_chain %s\n" TERM_NORMAL, node->command);
+  retval = execute(node->op1, fdin, fdout, fderr);
+  switch (node->type)
+  {
+    case CN_CHAIN:
+      exec_second = 1;
+      break;
+    case CN_AND:
+      exec_second = !retval;
+      break;
+    case CN_OR:
+      exec_second = retval;
+      break;
+    default:
+      fprintf(stderr, TERM_FG_RED "do_chain: incorrect node type %d %s\n" TERM_NORMAL, 
+          node->type, node->command);
+      return 1;
+  }
+  if (exec_second)
+    return execute(node->op2, fdin, fdout, fderr);
+  else
+    return retval;
 }
 
 static int do_background(CommandNode *node, int fdin, int fdout, int fderr)
@@ -109,7 +132,12 @@ static int run_sync(char *program, List arguments, int fdin, int fdout, int fder
     /* parent process */
     int status;
     pid_t wait_result = waitpid(child, &status, 0);
-    if (WIFEXITED(status))
+    if (wait_result == -1)
+    {
+      perror("run_sync");
+      return 1;
+    }
+    else if (WIFEXITED(status))
     {
       int retval = WEXITSTATUS(status);
       fprintf(stderr, TERM_FG_BROWN "child exited with code %d\n" TERM_NORMAL,
@@ -133,18 +161,39 @@ static int replace_process(char *program, List arguments, int fdin, int fdout, i
   size_t argc = list_size(arguments);
   char **argv = (char **) calloc(1 + argc + 1, sizeof(char *));
   size_t i;
-  int res;
 
+  /* build argv array; arguments list is stored reversed */
   argv[0] = program;
   arguments = list_reverse(arguments);
   for (i=1; arguments!=EmptyList; i++, arguments=arguments->next)
     argv[i] = list_head_str(arguments);
 
-  /* TODO: replace in/out/err */
+  /* redirect i/o streams */
+  if (!redirect_stream(fdin,  STDIN_FILENO))
+    goto L_ERROR;
+  if (!redirect_stream(fdout, STDOUT_FILENO))
+    goto L_ERROR;
+  if (!redirect_stream(fderr, STDERR_FILENO))
+    goto L_ERROR;
 
-  res = execvp(program, argv);
+  execvp(program, argv);
+
+L_ERROR:
+  perror("replace_process");
   free(argv);
-  perror("run_sync");
   exit(1);
   /* noreturn */
 }
+
+static int redirect_stream(int fd_what, int fd_where)
+{
+  if (fd_what == fd_where) /* no need to redirect */
+    return 1;
+
+  if (dup2(fd_where, fd_what)<0) /* replace target fd */
+    return 0;
+  if (close(fd_what)<0) /* close source fd */
+    return 0;
+  return 1;
+}
+
