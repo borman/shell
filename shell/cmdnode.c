@@ -89,6 +89,7 @@ void cmdnode_free_recursive(CommandNode *root)
  * TODO: handle incorrect input
  */
 
+/* extract first 2 elements; return true if succeeded */
 static int list_head2(List list, CommandNode **a, CommandNode **b)
 {
   if (list==EmptyList || list->next==EmptyList)
@@ -98,6 +99,8 @@ static int list_head2(List list, CommandNode **a, CommandNode **b)
   *b = list_head_command(list->next);
   return 1;
 }
+
+/* extract first 3 elements; return true if succeeded */
 static int list_head3(List list, CommandNode **a, CommandNode **b, CommandNode **c)
 {
   if (list==EmptyList || list->next==EmptyList || list->next->next==EmptyList)
@@ -109,6 +112,12 @@ static int list_head3(List list, CommandNode **a, CommandNode **b, CommandNode *
   return 1;
 }
 
+/**
+ * Transform expression, so that sequences like [l, OP, r] are folded into 
+ * single subtree items (OP l, r). Operators are defined by mask, all operators
+ * defined at the same time have same priority; left-associative.
+ * allow_incomplete allows folding incomplete tail form: [l, OP] -> (OP l, null)
+ */
 static List fold_list(List expression, unsigned int mask, int allow_incomplete)
 {
   CommandNode *l, *op, *r;
@@ -118,11 +127,13 @@ static List fold_list(List expression, unsigned int mask, int allow_incomplete)
 
   while (list_head3(expression, &l, &op, &r))
   {
+    /* 3-item form: l OP r */
     if (op->type & mask)
     {
       fprintf(stderr, "fold <%s, %#x=%s, %s>\n", l->command, op->type, op->command, r->command); 
 
-      /* expression: [L, Op, R | Tail] -> [Op | Tail]
+      /* MATCH
+       * expression: [L, Op, R | Tail] -> [Op | Tail]
        */
       op->op1 = l;
       op->op2 = r;
@@ -133,15 +144,18 @@ static List fold_list(List expression, unsigned int mask, int allow_incomplete)
     {
       fprintf(stderr, "fail <%s, %#x=%s, %s>\n", l->command, op->type, op->command, r->command); 
 
-      /* expression: [L, Op, R | Tail] -> [R | Tail]
+      /* NO MATCH
+       * expression: [L, Op, R | Tail] -> [R | Tail]
        * result:     Tail -> [Op, L | Tail]
        */
       expression = list_pop(list_pop(expression));
       result = list_push(list_push(result, l), op);
     }
   }
+
   if (allow_incomplete && list_head2(expression, &l, &op))
   {
+    /* 2-item form: l OP */
     if (op->type & mask)
     {
       /* expression: [L, Op] -> []
@@ -152,6 +166,8 @@ static List fold_list(List expression, unsigned int mask, int allow_incomplete)
       result = list_push(result, op);
     }
   }
+
+  /* push expression tail into result list */
   while (expression != EmptyList)
   {
     result = list_push(result, list_head_command(expression));
@@ -161,37 +177,44 @@ static List fold_list(List expression, unsigned int mask, int allow_incomplete)
   return list_reverse(result);
 }
 
-void cmdnode_unflatten(CommandNode *node, int *status)
+
+void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
 {
   List expression;
   const unsigned int ops_pipe = CN_PIPE;
   const unsigned int ops_chain = CN_CHAIN | CN_BACKGROUND | CN_AND | CN_OR;
 
+  *status = CMDLINE_OK;
+
   fprintf(stderr, "flatten node: ");
   debug_dump_cmdnode(stderr, node);
   fprintf(stderr, "\n");
 
-  if (node->type != CN_SUBSHELL)
+  /* simple nodes don't need any assistance */
+  if (node->type != CN_SUBSHELL || node->expression == EmptyList)
     return; 
-
-  expression = node->expression;
-  if (expression == EmptyList)
-    return;
 
   fprintf(stderr, "node is a subshell: flattening\n");
 
+  /* first, ensure all subexpressions are trees */
+  expression = node->expression;
   while (expression != EmptyList)
   {
     cmdnode_unflatten(list_head_command(expression), status);
+    /* stop on error */
+    if (*status != CMDLINE_OK)
+      return;
     expression = expression->next;
   }
 
   fprintf(stderr, "flattened => folding\n");
 
+  /* apply list folding */
   expression = node->expression;
   expression = fold_list(expression, ops_pipe, 0);
   expression = fold_list(expression, ops_chain, 0);
   
+  /* list must have folded into a single item */
   if (expression->next == EmptyList) /* folded ok */
   {
     fprintf(stderr, "folding success\n");
@@ -202,6 +225,7 @@ void cmdnode_unflatten(CommandNode *node, int *status)
   else
   {
     fprintf(stderr, "folding failed\n");
+    *status = CMDLINE_EXPRESSION_ERROR;
     node->expression = expression;
   }
 
@@ -209,4 +233,3 @@ void cmdnode_unflatten(CommandNode *node, int *status)
   debug_dump_cmdnode(stderr, node);
   fprintf(stderr, "\n");
 }
-

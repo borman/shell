@@ -4,16 +4,7 @@
 #include "list.h"
 #include "buffer.h"
 #include "cmdnode.h"
-
-typedef enum 
-{
-  CMDLINE_OK = 0,
-
-  CMDLINE_LEX_UNBALANCED_QUOTE,
-  CMDLINE_LEX_UNFINISHED_ESCAPE,
-
-  CMDLINE_PARSER_ERROR
-} CmdlineParserStatus;
+#include "cmdline_status.h"
 
 typedef struct 
 {

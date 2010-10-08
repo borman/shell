@@ -140,7 +140,7 @@ static int run_sync(char *program, List arguments, int fdin, int fdout, int fder
     else if (WIFEXITED(status))
     {
       int retval = WEXITSTATUS(status);
-      fprintf(stderr, TERM_FG_BROWN "child exited with code %d\n" TERM_NORMAL,
+      fprintf(stderr, TERM_FG_BROWN TERM_BOLD "child exited with code %d\n" TERM_NORMAL,
          retval);
       return retval;
     }

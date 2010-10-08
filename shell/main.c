@@ -50,7 +50,11 @@ int main(int argc, char **argv)
         break;
 
       case CMDLINE_PARSER_ERROR:
-        print_error("Parser error", "unknown");
+        print_error("Parser error", "Unknown");
+        break;
+
+      case CMDLINE_EXPRESSION_ERROR:
+        print_error("Parser error", "Malformed expression");
         break;
     }
 
