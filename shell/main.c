@@ -11,7 +11,7 @@
 
 static void print_error(const char *error_class, const char *error_desc)
 {
-  fprintf(stderr, TERM_FG_RED "%s" TERM_NORMAL ": %s\n", error_class, error_desc);
+  fprintf(stderr, TERM_FG_RED TERM_BOLD "%s:" TERM_NORMAL " %s\n", error_class, error_desc);
 }
 
 int main(int argc, char **argv)
