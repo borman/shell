@@ -54,10 +54,11 @@ static ParserState state_redirect_filename(ParserContext *ctx, char *token);
 
 
 /**
- * Token operations
+ * General utility functions
  */
 
 static TokenClass token_class(const char *token);
+static void fix_arguments_order(CommandNode *node);
 
 
 /** 
@@ -101,6 +102,7 @@ CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
   if (state != ST_ERROR && state != ST_REDIRECT_FILENAME)
   {
     *status = CMDLINE_OK;
+    fix_arguments_order(ctx.current_command);
     return ctx.current_command;
   }
   else
@@ -321,4 +323,30 @@ static TokenClass token_class(const char *token)
 }
 
 
+static void fix_arguments_order(CommandNode *node)
+{
+  List subnodes;
+
+  if (node == NULL)
+    return;
+
+  switch (node->type)
+  {
+    case CN_COMMAND:
+      node->arguments = list_reverse(node->arguments);
+      break;
+
+    case CN_SUBSHELL:
+      subnodes = node->expression;
+      while (subnodes != EmptyList)
+      {
+        fix_arguments_order(list_head_command(subnodes));
+        subnodes = subnodes->next;
+      }
+      break;
+
+    default:
+      break;
+  }
+}
 
