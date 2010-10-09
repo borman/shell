@@ -38,7 +38,7 @@ int execute(CommandNode *node, int fdin, int fdout, int fderr)
       return do_subshell(node, fdin, fdout, fderr);
 
     case CN_BACKGROUND:
-      return do_command(node, fdin, fdout, fderr);
+      return do_background(node, fdin, fdout, fderr);
 
     case CN_CHAIN:
     case CN_OR:
