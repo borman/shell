@@ -65,7 +65,6 @@ static TokenClass token_class(const char *token);
  */
 
 static void begin_command(ParserContext *ctx, char *command);
-static void end_command(ParserContext *ctx);
 static void add_argument(ParserContext *ctx, char *arg);
 static void add_redirection(ParserContext *ctx, char *filename);
 static void add_operator(ParserContext *ctx, char *token);
@@ -81,13 +80,7 @@ static ParserState parser_process_token(ParserContext *ctx,
 
 CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
 {
-  ParserContext ctx = 
-  {
-    .expr_stack = NULL,
-    .current_expr = NULL,
-
-    .current_command = NULL,
-  };
+  ParserContext ctx = {EmptyList, EmptyList, NULL, NULL};
 
   ParserState state = ST_COMMAND;  
 
