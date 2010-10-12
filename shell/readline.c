@@ -34,7 +34,7 @@ READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
 
 READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
 {
-  char c;
+  int c;
   
   buffer_clear(buf);
 
