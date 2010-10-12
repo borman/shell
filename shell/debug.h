@@ -12,5 +12,6 @@
  */
 void debug_dump_szlist(FILE *file, List list);
 void debug_dump_cmdnode(FILE *file, CommandNode *node);
+void debug_dump_expression_graph(CommandNode *expr);
 
 #endif /* DEBUG_H */

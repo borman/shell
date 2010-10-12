@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     switch (prog->status)
     {
       case CMDLINE_OK:
+        debug_dump_expression_graph(prog->tree);
         execute(prog->tree, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
         break;
 

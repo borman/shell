@@ -8,7 +8,7 @@ void debug_dump_szlist(FILE *file, List list)
   fprintf(file, "[");
   while (list != NULL)
   {
-    fprintf(file, "\"%s\"%s", list_head_str(list), list->next==NULL?"":", ");
+    fprintf(file, "'%s'%s", list_head_str(list), list->next==NULL?"":", ");
     list = list->next;
   }
   fprintf(file, "]");
@@ -68,3 +68,44 @@ void debug_dump_cmdnode(FILE *file, CommandNode *node)
   }
 }
 
+static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr);
+
+void debug_dump_expression_graph(CommandNode *expr)
+{
+  FILE *file = fopen("command.dot", "w");
+  if (file == NULL)
+    return;
+  fprintf(file, "digraph Cmdline {\n");
+  debug_dump_expression_graph_node(file, expr);
+  fprintf(file, "}\n");
+  fclose(file);
+}
+
+static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr)
+{
+  switch (expr->type)
+  {
+    case CN_SUBSHELL:
+      fprintf(file, "node%p [shape=box, label=\"Subshell\"];\n", expr);
+      break;
+  
+    case CN_COMMAND:
+      fprintf(file, "node%p [shape=ellipse, label=\"%s\\n", expr, expr->command);
+      debug_dump_szlist(file, expr->arguments);
+      fprintf(file, "\"];\n");
+      break;
+
+    default:
+      fprintf(file, "node%p [shape=diamond, label=\"%s\"]\n", expr, expr->command);
+  }
+  if (expr->op1 != NULL)
+  {
+    fprintf(file, "node%p -> node%p;\n", expr, expr->op1);
+    debug_dump_expression_graph_node(file, expr->op1);
+  }
+  if (expr->op2 != NULL)
+  {
+    fprintf(file, "node%p -> node%p;\n", expr, expr->op2);
+    debug_dump_expression_graph_node(file, expr->op2);
+  }
+}
