@@ -31,7 +31,7 @@ typedef enum
 /**
  * A node in internal program representation.
  */
-typedef struct CommandNodeRef 
+typedef struct CommandNode 
 {
   CommandNodeType type;
 
@@ -45,8 +45,8 @@ typedef struct CommandNodeRef
 
   List expression; 
 
-  struct CommandNodeRef *op1;
-  struct CommandNodeRef *op2;
+  struct CommandNode *op1;
+  struct CommandNode *op2;
 } CommandNode;
 
 /** 

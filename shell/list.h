@@ -3,10 +3,10 @@
 
 #define EmptyList (NULL)
 
-typedef struct ListNodeRef
+typedef struct ListNode
 {
   void *data;
-  struct ListNodeRef *next;
+  struct ListNode *next;
 } ListNode;
 typedef ListNode *List;
 
@@ -22,7 +22,7 @@ size_t list_size(List list);
 
 #define list_head_str(list) ((char *)list_head(list))
 #define list_head_list(list) ((List)list_head(list))
-#define list_head_command(list) ((struct CommandNodeRef *)list_head(list))
+#define list_head_command(list) ((struct CommandNode *)list_head(list))
 
 #endif /* LIST_H */
 
