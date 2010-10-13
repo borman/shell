@@ -59,6 +59,7 @@ static ParserState state_redirect_filename(ParserContext *ctx, char *token);
 
 static TokenClass token_class(const char *token);
 static void fix_arguments_order(CommandNode *node);
+static void free_command_list(List list);
 
 
 /** 
@@ -99,18 +100,31 @@ CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
   if (state != ST_ERROR)
     state = parser_process_token(&ctx, state, ")");
 
-  if (state != ST_ERROR && state != ST_REDIRECT_FILENAME)
+  if (state != ST_ERROR && state != ST_REDIRECT_FILENAME &&
+      ctx.expr_stack == NULL &&
+      ctx.current_expr != NULL && ctx.current_expr->next==NULL)
   {
-    *status = CMDLINE_OK;
+    /* success */
+    list_free(ctx.current_expr);
     fix_arguments_order(ctx.current_command);
+    
+    *status = CMDLINE_OK;
     return ctx.current_command;
   }
   else
   {
-    fprintf(stderr, "parser fail\n");
+    List stack;
+    /* free all CommandNode entities */
+    free_command_list(ctx.current_expr);
+    stack = ctx.expr_stack;
+    while (stack != NULL)
+    {
+      free_command_list(list_head_list(stack));
+      stack = list_pop(stack);
+    }
+
     *status = CMDLINE_PARSER_ERROR;
     return NULL;
-    /* FIXME: memory leak */
   }
 }
 
@@ -129,8 +143,11 @@ static ParserState parser_process_token(ParserContext *ctx,
   };
 
   /* debug trace */
+  /*
   fprintf(stderr, TERM_FG_CYAN TERM_BOLD "%d | <\"%s\" %d>\n" TERM_NORMAL,
           state, token, token_class(token));
+
+  */
 
   return state_handlers[state](ctx, token);
 }
@@ -226,39 +243,29 @@ static void begin_command(ParserContext *ctx, char *command_str)
 
   ctx->current_expr = list_push(ctx->current_expr, command);
   ctx->current_command = command;
-
-  fprintf(stderr, "begin command %s\n", command_str);
 }
 
 static void add_argument(ParserContext *ctx, char *arg)
 {
   ctx->current_command->arguments = 
     list_push(ctx->current_command->arguments, arg);
-
-  fprintf(stderr, "add argument %s\n", arg);
 }
 
 static void add_redirection(ParserContext *ctx, char *filename)
 {
   cmdnode_add_redirection(ctx->current_command, ctx->redirect_type, filename);
-
-  fprintf(stderr, "redirect %s to %s\n", ctx->redirect_type, filename);
 }
 
 static void add_operator(ParserContext *ctx, char *operator)
 {
   ctx->current_expr = list_push(ctx->current_expr, 
       cmdnode_operator(operator));
-
-  fprintf(stderr, "add operator %s\n", operator);
 }
 
 static void open_subshell(ParserContext *ctx)
 {
   ctx->expr_stack = list_push(ctx->expr_stack, ctx->current_expr);
   ctx->current_expr = EmptyList;
-
-  fprintf(stderr, "open subshell\n");
 }
 
 static int close_subshell(ParserContext *ctx)
@@ -269,16 +276,11 @@ static int close_subshell(ParserContext *ctx)
     return 0;
 
   subshell = cmdnode_subshell(list_reverse(ctx->current_expr));
-  fprintf(stderr, "subshell node:\n");
-  debug_dump_cmdnode(stderr, subshell);
-  fprintf(stderr, "\n");
 
   ctx->current_expr = list_push(list_head_list(ctx->expr_stack), subshell);
   ctx->expr_stack = list_pop(ctx->expr_stack);
 
   ctx->current_command = subshell;
-
-  fprintf(stderr, "close subshell\n");
 
   return 1;
 }
@@ -347,6 +349,15 @@ static void fix_arguments_order(CommandNode *node)
 
     default:
       break;
+  }
+}
+
+static void free_command_list(List list)
+{
+  while (list != EmptyList)
+  {
+    cmdnode_free_recursive(list_head_command(list));
+    list =  list_pop(list);
   }
 }
 

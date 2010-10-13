@@ -44,6 +44,19 @@ void cmdnode_add_redirection(CommandNode *node, char *type, char *filename)
 
 void cmdnode_free(CommandNode *node)
 {
+  if (node->expression != NULL)
+  {
+    List expr = node->expression;
+    while (expr != NULL)
+    {
+      cmdnode_free_recursive(list_head_command(expr));
+      expr = list_pop(expr);
+    }
+  }
+  list_free(node->arguments);
+  list_free(node->input_files);
+  list_free(node->output_files);
+  list_free(node->output_append_files);
   free(node);
 }
 
@@ -55,7 +68,7 @@ void cmdnode_free_recursive(CommandNode *root)
   if (root->op2 != NULL)
     cmdnode_free_recursive(root->op2);
 
-  free(root);
+  cmdnode_free(root);
 }
 
 /**

@@ -75,7 +75,7 @@ size_t list_size(List list)
 
 static List list_node_alloc(void *default_data)
 {
-  List node = (List)malloc(sizeof(List));
+  List node = (List) malloc(sizeof(ListNode));
 
   node->data = default_data;
   node->next = NULL;
