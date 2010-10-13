@@ -164,7 +164,7 @@ static int replace_process(char *program, List arguments, int fdin, int fdout, i
 
   /* build argv array; arguments list is stored reversed */
   argv[0] = program;
-  for (i=1; arguments!=EmptyList; i++, arguments=arguments->next)
+  for (i=1; arguments!=NULL; i++, arguments=arguments->next)
     argv[i] = list_head_str(arguments);
 
   /* redirect i/o streams */

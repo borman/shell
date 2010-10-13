@@ -60,7 +60,7 @@ void list_free(List list)
 size_t list_size(List list)
 {
   size_t size = 0;
-  while (list != EmptyList)
+  while (list != NULL)
   {
     size++;
     list = list->next;

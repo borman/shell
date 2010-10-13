@@ -1,8 +1,6 @@
 #ifndef LIST_H
 #define LIST_H
 
-#define EmptyList (NULL)
-
 typedef struct ListNode
 {
   void *data;

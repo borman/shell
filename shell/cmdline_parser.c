@@ -82,7 +82,7 @@ static ParserState parser_process_token(ParserContext *ctx,
 
 CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
 {
-  ParserContext ctx = {EmptyList, EmptyList, NULL, NULL};
+  ParserContext ctx = {NULL, NULL, NULL, NULL};
 
   ParserState state = ST_COMMAND;  
 
@@ -265,14 +265,14 @@ static void add_operator(ParserContext *ctx, char *operator)
 static void open_subshell(ParserContext *ctx)
 {
   ctx->expr_stack = list_push(ctx->expr_stack, ctx->current_expr);
-  ctx->current_expr = EmptyList;
+  ctx->current_expr = NULL;
 }
 
 static int close_subshell(ParserContext *ctx)
 {
   CommandNode *subshell;
 
-  if (ctx->expr_stack == EmptyList)
+  if (ctx->expr_stack == NULL)
     return 0;
 
   subshell = cmdnode_subshell(list_reverse(ctx->current_expr));
@@ -340,7 +340,7 @@ static void fix_arguments_order(CommandNode *node)
 
     case CN_SUBSHELL:
       subnodes = node->expression;
-      while (subnodes != EmptyList)
+      while (subnodes != NULL)
       {
         fix_arguments_order(list_head_command(subnodes));
         subnodes = subnodes->next;
@@ -354,7 +354,7 @@ static void fix_arguments_order(CommandNode *node)
 
 static void free_command_list(List list)
 {
-  while (list != EmptyList)
+  while (list != NULL)
   {
     cmdnode_free_recursive(list_head_command(list));
     list =  list_pop(list);

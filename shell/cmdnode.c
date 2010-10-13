@@ -85,12 +85,12 @@ void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
   *status = CMDLINE_OK;
 
   /* simple nodes don't need any assistance */
-  if (node->type != CN_SUBSHELL || node->expression == EmptyList)
+  if (node->type != CN_SUBSHELL || node->expression == NULL)
     return; 
 
   /* first, ensure all subexpressions are trees */
   expression = node->expression;
-  while (expression != EmptyList)
+  while (expression != NULL)
   {
     cmdnode_unflatten(list_head_command(expression), status);
     /* stop on error */
@@ -105,10 +105,10 @@ void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
   expression = fold_list(expression, ops_chain);
   
   /* list must have folded into a single item */
-  if (expression->next == EmptyList) 
+  if (expression->next == NULL) 
   {
     /* success */
-    node->expression = EmptyList;
+    node->expression = NULL;
     node->op1 = list_head_command(expression);
     expression = list_pop(expression);
   }
@@ -162,7 +162,7 @@ static CommandNode *cmdnode_alloc(CommandNodeType type, char *command)
 /* extract first 2 elements; return true if succeeded */
 static int list_head2(List list, CommandNode **a, CommandNode **b)
 {
-  if (list==EmptyList || list->next==EmptyList)
+  if (list==NULL || list->next==NULL)
     return 0; /* list too small */
 
   *a = list_head_command(list);
@@ -173,7 +173,7 @@ static int list_head2(List list, CommandNode **a, CommandNode **b)
 /* extract first 3 elements; return true if succeeded */
 static int list_head3(List list, CommandNode **a, CommandNode **b, CommandNode **c)
 {
-  if (list==EmptyList || list->next==EmptyList || list->next->next==EmptyList)
+  if (list==NULL || list->next==NULL || list->next->next==NULL)
     return 0; /* list too small */
 
   *a = list_head_command(list);
@@ -192,7 +192,7 @@ static int list_head3(List list, CommandNode **a, CommandNode **b, CommandNode *
 static List fold_list(List expression, unsigned int mask)
 {
   CommandNode *l, *op, *r;
-  List result = EmptyList;
+  List result = NULL;
 
   while (list_head3(expression, &l, &op, &r))
   {
@@ -233,7 +233,7 @@ static List fold_list(List expression, unsigned int mask)
   }
 
   /* push expression tail into result list */
-  while (expression != EmptyList)
+  while (expression != NULL)
   {
     result = list_push(result, list_head_command(expression));
     expression = list_pop(expression);

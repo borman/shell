@@ -13,7 +13,7 @@
 static List make_szlist(Buffer *strings)
 {
   size_t pos = 0;
-  List list = EmptyList;
+  List list = NULL;
 
   while (pos<strings->length)
   {
