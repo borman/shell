@@ -25,7 +25,7 @@ void debug_dump_cmdnode(FILE *file, CommandNode *node)
   switch (node->type)
   {
     case CN_COMMAND:
-      fprintf(file, "{command, \"%s\", ", node->command);
+      fprintf(file, "{command, '%s\', ", node->command);
       debug_dump_szlist(file, node->arguments);
       fprintf(file, "}");
       break;
@@ -35,7 +35,7 @@ void debug_dump_cmdnode(FILE *file, CommandNode *node)
     case CN_AND:
     case CN_OR:
     case CN_BACKGROUND:
-      fprintf(file, "{operator, \"%s\", ", node->command);
+      fprintf(file, "{operator, '%s', ", node->command);
       debug_dump_cmdnode(file, node->op1);
       fprintf(file, ", ");
       debug_dump_cmdnode(file, node->op2);
