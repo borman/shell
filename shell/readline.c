@@ -14,7 +14,10 @@ READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
   char *line;
  
   if (!history_ready)
+  {
     using_history();
+    history_ready = 1;
+  }
 
   line = readline(prompt);
 
