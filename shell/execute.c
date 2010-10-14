@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <assert.h>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -19,10 +20,6 @@ static int do_pipe(CommandNode *node, int fdin, int fdout, int fderr);
 
 int execute(CommandNode *node, int fdin, int fdout, int fderr)
 {
-  fprintf(stderr, TERM_FG_GREEN "execute ");
-  debug_dump_cmdnode(stderr, node);
-  fprintf(stderr, "\n" TERM_NORMAL);
-
   if (node==NULL)
     return 0;
 
@@ -85,10 +82,9 @@ static int do_chain(CommandNode *node, int fdin, int fdout, int fderr)
     case CN_OR:
       exec_second = retval;
       break;
-    default:
-      fprintf(stderr, TERM_FG_RED "do_chain: incorrect node type %d %s\n" TERM_NORMAL, 
-          node->type, node->command);
-      return 1;
+
+    default: /* this isn't going to happen */
+      assert(0);
   }
   if (exec_second)
     return execute(node->op2, fdin, fdout, fderr);
@@ -98,9 +94,25 @@ static int do_chain(CommandNode *node, int fdin, int fdout, int fderr)
 
 static int do_background(CommandNode *node, int fdin, int fdout, int fderr)
 {
-  fprintf(stderr, TERM_FG_BROWN "do_background -> chain\n" TERM_NORMAL);
-  execute(node->op1, fdin, fdout, fderr);
-  return execute(node->op2, fdin, fdout, fderr);
+  pid_t pid;
+
+  fprintf(stderr, TERM_FG_BROWN "do_background: no job control\n" TERM_NORMAL);
+  
+  if (((pid=fork()))==0)
+  {
+    /* child */
+    exit(execute(node->op1, fdin, fdout, fderr));
+  }
+  else if (pid>0)
+  {
+    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "spawned bg process %d" TERM_NORMAL, pid);
+    return execute(node->op2, fdin, fdout, fderr);
+  }
+  else
+  {
+    perror("do_background");
+    exit(1);
+  }
 }
 
 static int do_pipe(CommandNode *node, int fdin, int fdout, int fderr)
