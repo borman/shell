@@ -4,21 +4,26 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #include "execute.h"
 #include "debug.h"
 
-static int run_sync(char *program, List arguments, int fdin, int fdout, int fderr);
-static int replace_process(char *program, List arguments, int fdin, int fdout, int fderr);
-static int redirect_stream(int fd_what, int fd_where);
+static int replace_process(char *program, List arguments);
+static void redirect_stream(int fd_source, int fd_target);
+static void redirect_to_files(const char *input, const char *output, int do_output_append);
+static void setup_redirections(CommandNode *node);
+static int check_wait(pid_t pid);
 
-static int do_command(CommandNode *node, int fdin, int fdout, int fderr);
-static int do_subshell(CommandNode *node, int fdin, int fdout, int fderr);
-static int do_chain(CommandNode *node, int fdin, int fdout, int fderr);
-static int do_background(CommandNode *node, int fdin, int fdout, int fderr);
-static int do_pipe(CommandNode *node, int fdin, int fdout, int fderr);
+static int do_command(CommandNode *node);
+static int do_subshell(CommandNode *node);
+static int do_chain(CommandNode *node);
+static int do_background(CommandNode *node);
+static int do_pipe(CommandNode *node);
 
-int execute(CommandNode *node, int fdin, int fdout, int fderr)
+int execute(CommandNode *node)
 {
   if (node==NULL)
     return 0;
@@ -26,21 +31,21 @@ int execute(CommandNode *node, int fdin, int fdout, int fderr)
   switch (node->type)
   {
     case CN_COMMAND:
-      return do_command(node, fdin, fdout, fderr);
+      return do_command(node);
 
     case CN_PIPE:
-      return do_pipe(node, fdin, fdout, fderr);
+      return do_pipe(node);
 
     case CN_SUBSHELL:
-      return do_subshell(node, fdin, fdout, fderr);
+      return do_subshell(node);
 
     case CN_BACKGROUND:
-      return do_background(node, fdin, fdout, fderr);
+      return do_background(node);
 
     case CN_CHAIN:
     case CN_OR:
     case CN_AND:
-      return do_chain(node, fdin, fdout, fderr);
+      return do_chain(node);
 
     default:
       fprintf(stderr, TERM_FG_BROWN "execute: null node found\n" TERM_NORMAL);
@@ -52,25 +57,67 @@ int execute(CommandNode *node, int fdin, int fdout, int fderr)
  * Node types
  */
 
-static int do_command(CommandNode *node, int fdin, int fdout, int fderr)
+/**
+ * Command node: fork synchronously and call exec
+ */
+static int do_command(CommandNode *node)
 {
-  fprintf(stderr, TERM_FG_BROWN "do_command %s\n" TERM_NORMAL, node->command);
-  return run_sync(node->command, node->arguments, fdin, fdout, fderr);
+  pid_t child;
+
+  fprintf(stderr, TERM_FG_BROWN TERM_BOLD "do_command %s ", node->command);
+  debug_dump_szlist(stderr, node->arguments);
+  fprintf(stderr, "\n" TERM_NORMAL);
+
+  if (((child = fork())) == 0)
+  {
+    /* child process */
+    setup_redirections(node);
+    replace_process(node->command, node->arguments);
+    /* noreturn */
+  }
+  else
+  {
+    /* parent process */
+    return check_wait(child);
+  }
+  return 1;
 }
 
-static int do_subshell(CommandNode *node, int fdin, int fdout, int fderr)
+/**
+ * Subshell node: fork synchronously and setup environment for subshell 
+ */
+static int do_subshell(CommandNode *node)
 {
+  pid_t pid;
   fprintf(stderr, TERM_FG_BROWN "do_subshell\n" TERM_NORMAL);
-  return execute(node->op1, fdin, fdout, fderr);
+  if (((pid = fork())) == 0)
+  {
+    /* child */
+    setup_redirections(node);
+    exit(execute(node->op1));
+    /* noreturn */
+  }
+  else if (pid > 0)
+  {
+    /* parent */
+    return check_wait(pid);
+  }
+  /* else */ 
+  perror("do_subshell");
+  exit(1);
 }
 
-static int do_chain(CommandNode *node, int fdin, int fdout, int fderr)
+/**
+ * Chain node: execute left operand and decide whether to run
+ * the right one based on left one's return value
+ */
+static int do_chain(CommandNode *node)
 {
   int retval;
   int exec_second;
 
   fprintf(stderr, TERM_FG_BROWN "do_chain %s\n" TERM_NORMAL, node->command);
-  retval = execute(node->op1, fdin, fdout, fderr);
+  retval = execute(node->op1);
   switch (node->type)
   {
     case CN_CHAIN:
@@ -87,12 +134,16 @@ static int do_chain(CommandNode *node, int fdin, int fdout, int fderr)
       assert(0);
   }
   if (exec_second)
-    return execute(node->op2, fdin, fdout, fderr);
+    return execute(node->op2);
   else
     return retval;
 }
 
-static int do_background(CommandNode *node, int fdin, int fdout, int fderr)
+/**
+ * Background node: fork and execute left operand in background, while 
+ * continuing to execute right operand
+ */
+static int do_background(CommandNode *node)
 {
   pid_t pid;
 
@@ -101,12 +152,12 @@ static int do_background(CommandNode *node, int fdin, int fdout, int fderr)
   if (((pid=fork()))==0)
   {
     /* child */
-    exit(execute(node->op1, fdin, fdout, fderr));
+    exit(execute(node->op1));
   }
   else if (pid>0)
   {
     fprintf(stderr, TERM_FG_BROWN TERM_BOLD "spawned bg process %d" TERM_NORMAL, pid);
-    return execute(node->op2, fdin, fdout, fderr);
+    return execute(node->op2);
   }
   else
   {
@@ -115,7 +166,10 @@ static int do_background(CommandNode *node, int fdin, int fdout, int fderr)
   }
 }
 
-static int do_pipe(CommandNode *node, int fdin, int fdout, int fderr)
+/**
+ * Pipe: TODO
+ */
+static int do_pipe(CommandNode *node)
 {
   fprintf(stderr, TERM_FG_BROWN "do_pipe: oops, my mama doesn't let me pipe :(\n" TERM_NORMAL);
   return 1;
@@ -126,66 +180,19 @@ static int do_pipe(CommandNode *node, int fdin, int fdout, int fderr)
  * Utility functions
  */
 
-static int run_sync(char *program, List arguments, int fdin, int fdout, int fderr)
-{
-  pid_t child;
-
-  fprintf(stderr, TERM_FG_BROWN TERM_BOLD "run command %s ", program);
-  debug_dump_szlist(stderr, arguments);
-  fprintf(stderr, "\n" TERM_NORMAL);
-
-  if (((child = fork())) == 0)
-  {
-    /* child process */
-    replace_process(program, arguments, fdin, fdout, fderr);
-  }
-  else
-  {
-    /* parent process */
-    int status;
-    pid_t wait_result = waitpid(child, &status, 0);
-    if (wait_result == -1)
-    {
-      perror("run_sync");
-      return 1;
-    }
-    else if (WIFEXITED(status))
-    {
-      int retval = WEXITSTATUS(status);
-      fprintf(stderr, TERM_FG_BROWN TERM_BOLD "child exited with code %d\n" TERM_NORMAL,
-         retval);
-      return retval;
-    }
-    else if (WIFSIGNALED(status))
-    {
-      fprintf(stderr, TERM_FG_BROWN "child killed by signal %d\n" TERM_NORMAL,
-         WTERMSIG(status));
-    }
-    else
-      fprintf(stderr, TERM_FG_BROWN "child exited with unknown reason\n" TERM_NORMAL);
-  }
-
-  return 1;
-}
-
-static int replace_process(char *program, List arguments, int fdin, int fdout, int fderr)
+/**
+ * Replace current process with a program 
+ */
+static int replace_process(char *program, List arguments)
 {
   size_t argc = list_size(arguments);
   char **argv = (char **) calloc(1 + argc + 1, sizeof(char *));
   size_t i;
 
-  /* build argv array; arguments list is stored reversed */
+  /* build argv array */
   argv[0] = program;
   for (i=1; arguments!=NULL; i++, arguments=arguments->next)
     argv[i] = list_head_str(arguments);
-
-  /* redirect i/o streams */
-  if (!redirect_stream(fdin,  STDIN_FILENO))
-    goto L_ERROR;
-  if (!redirect_stream(fdout, STDOUT_FILENO))
-    goto L_ERROR;
-  if (!redirect_stream(fderr, STDERR_FILENO))
-    goto L_ERROR;
 
   execvp(program, argv);
 
@@ -196,15 +203,110 @@ L_ERROR:
   /* noreturn */
 }
 
-static int redirect_stream(int fd_what, int fd_where)
+/**
+ * Load redirections from a command node
+ */
+static void setup_redirections(CommandNode *node)
 {
-  if (fd_what == fd_where) /* no need to redirect */
-    return 1;
+  size_t n_input = list_size(node->input_files);
+  size_t n_output = list_size(node->output_files);
+  size_t n_output_append = list_size(node->output_append_files);
 
-  if (dup2(fd_where, fd_what)<0) /* replace target fd */
-    return 0;
-  if (close(fd_what)<0) /* close source fd */
-    return 0;
+  const char *output = NULL;
+  const char *input = NULL;
+  int do_output_append = 0;
+
+  if (n_input>0)
+  {
+    input = list_head_str(node->input_files);
+    if (n_input>1)
+      fprintf(stderr, "more than one input file is specified: using last one\n");
+  }
+  if (n_output>0)
+  {
+    output = list_head_str(node->output_files);
+    if (n_output>1 || n_output_append>0)
+      fprintf(stderr, "more than one output file is specified: using last one\n"); 
+  }
+  else if (n_output_append>0)
+  {
+    output = list_head_str(node->output_append_files);
+    do_output_append = 1;
+    if (n_output_append>1)
+      fprintf(stderr, "more than one output-append file is specified: using last one\n"); 
+  }
+  
+  redirect_to_files(input, output, do_output_append); 
+}
+
+/**
+ * Redirect stdin/stdout to corresponding files
+ */
+static void redirect_to_files(const char *input, const char *output, int do_output_append)
+{
+  fprintf(stderr, "redirecting: (input -> %s), (output -> %s[%d])\n", 
+      input, output, do_output_append);
+  if (input != NULL)
+  {
+    int fd = open(input, O_RDONLY);
+    if (fd < 0)
+      perror(TERM_FG_RED TERM_BOLD "Cannot open input file" TERM_NORMAL);
+    else
+      redirect_stream(fd,  STDIN_FILENO);
+  }
+  if (output != NULL)
+  {
+    int fd = open(output, O_WRONLY | O_CREAT | (do_output_append? O_APPEND : O_TRUNC), 0666);
+    if (fd < 0)
+      perror(TERM_FG_RED TERM_BOLD "Cannot open output file" TERM_NORMAL);
+    else
+      redirect_stream(fd,  STDOUT_FILENO);
+  }
+}
+
+/**
+ * Replace fd_target with fd_source and close fd_source
+ */
+static void redirect_stream(int fd_source, int fd_target)
+{
+  if (fd_source == fd_target) /* no need to redirect */
+    return;
+
+  if (dup2(fd_source, fd_target)<0) /* replace target fd */
+  {
+    perror("redirect_stream:dup2");
+    return;
+  }
+  if (close(fd_source)<0) /* close source fd */
+  {
+    perror("redirect_stream:close");
+    return;
+  }
+}
+
+/**
+ * Wait for process to terminate, return desired return value
+ */
+static int check_wait(pid_t pid)
+{
+  int status;
+  pid_t wait_result = waitpid(pid, &status, 0);
+  if (wait_result == -1)
+    perror("check_wait");
+  else if (WIFEXITED(status))
+  {
+    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "child %d exited with code %d\n" TERM_NORMAL,
+        pid, WEXITSTATUS(status));
+    return WEXITSTATUS(status);
+  }
+  else if (WIFSIGNALED(status))
+  {
+    fprintf(stderr, TERM_FG_BROWN "child %d killed by signal %d\n" TERM_NORMAL,
+        pid, WTERMSIG(status));
+  }
+  else
+    fprintf(stderr, TERM_FG_BROWN "child %d exited with unknown reason\n" TERM_NORMAL, pid);
+
   return 1;
 }
 

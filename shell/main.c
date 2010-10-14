@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     {
       case CMDLINE_OK:
         debug_dump_expression_graph(prog->tree);
-        execute(prog->tree, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
+        execute(prog->tree);
         break;
 
       case CMDLINE_LEX_UNBALANCED_QUOTE:

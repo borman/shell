@@ -3,6 +3,6 @@
 
 #include "cmdnode.h"
 
-int execute(CommandNode *node, int fdin, int fdout, int fderr);
+int execute(CommandNode *node);
 
 #endif /* EXECUTE_H */
