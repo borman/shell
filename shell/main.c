@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         break;
 
       case CMDLINE_PARSER_ERROR:
-        print_error("Parser error", "Unknown");
+        print_error("Parser error", "Syntax error");
         break;
 
       case CMDLINE_EXPRESSION_ERROR:
