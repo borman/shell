@@ -37,22 +37,25 @@ typedef enum
   ST_QUOTE,
   ST_ESCAPE,
   ST_QUOTE_ESCAPE,
-  ST_OPERATOR
+  ST_OPERATOR,
+  ST_ERROR
 } LexerState;
 
 /* Lexer FSM main loop */
-Buffer *lexer_split(const char *src, CmdlineParserStatus *result)
+Buffer *lexer_split(const char *src, Diagnostic *diag)
 {
   LexerState state = ST_WHITESPACE;
+  LexerState prev_state;
   const size_t length = strlen(src);
   Buffer *tokens = buffer_alloc();
   size_t i;
   char op = 0;
 
   /* terminating zero is handled like a normal character */
-  for (i=0; i<length+1; i++)
+  for (i=0; state!=ST_ERROR && i<length+1; i++)
   {
     const char c = src[i];
+    prev_state = state;
 
     switch (state)
     {
@@ -76,13 +79,9 @@ Buffer *lexer_split(const char *src, CmdlineParserStatus *result)
 
       case ST_WHITESPACE:
         if (c=='"') /* start a quoted string, new token */
-        {
           state = ST_QUOTE;
-        }
         else if (c=='\\') /* start escape-sequence, new token */
-        {
           state = ST_ESCAPE;
-        }
         else if (is_simple_operator(c))
         {
           /* a new token for operator */
@@ -92,53 +91,40 @@ Buffer *lexer_split(const char *src, CmdlineParserStatus *result)
         else if (is_double_operator(c))
         {
           state = ST_OPERATOR;
-
           op = c;
         }
         else if (c!='\0' && !isspace(c)) /* start a new token */
         {
           state = ST_WORD;
-
           buffer_putchar(tokens, c);
         }
-        /* whitespace -> ignore */
+        /* else: whitespace -> ignore */
         break;
 
       case ST_QUOTE:
         if (c=='"') /* end a quoted string */
-        {
           state = ST_WORD;
-        } 
         else if (c=='\\') /* start escape-sequence */
-        {
           state = ST_QUOTE_ESCAPE;
-        }
         else if (c!='\0') /* append a char from inside quotes to token */
-        {
           buffer_putchar(tokens, c);
-        }
-        /* '\0' -> ignore (will set error flag later) */
+        else /* '\0' -> set error flag */
+          state = ST_ERROR;
         break;
 
       case ST_WORD:
         if (c=='\0' || isspace(c)) /* end a token */
         {
           state = ST_WHITESPACE;
-
           buffer_putchar(tokens, '\0');
         }
         else if (c=='"') /* start a quoted string */
-        {
           state = ST_QUOTE;
-        }
         else if (c=='\\') /* start escape-sequence */
-        {
           state = ST_ESCAPE; 
-        }
         else if (is_simple_operator(c))
         {
           state = ST_WHITESPACE;
-
           /* a new token for operator */
           buffer_putchar(tokens, '\0');
           buffer_putchar(tokens, c);
@@ -147,58 +133,67 @@ Buffer *lexer_split(const char *src, CmdlineParserStatus *result)
         else if (is_double_operator(c))
         {
           state = ST_OPERATOR;
-
           buffer_putchar(tokens, '\0');
           op = c;
         }
         else /* append a char to token */
-        {
           buffer_putchar(tokens, c);
-        }
         break;
 
       case ST_ESCAPE:
         if (c!='\0')
         {
           state = ST_WORD;
-
           buffer_putchar(tokens, c);
         }
-        /* '\0' -> ignore (will set error flag later) */
+        else /* '\0' -> set error flag */
+        {
+          state = ST_ERROR;
+        }
         break;
 
       case ST_QUOTE_ESCAPE:
         if (c!='\0')
         {
           state = ST_QUOTE;
-
           buffer_putchar(tokens, c);
         }
-        /* '\0' -> ignore (will set error flag later) */
+        else /* '\0' -> set error flag */
+          state = ST_ERROR;
+        break;
+
+      default:
         break;
     }    
   }
 
   /* Detect lexing errors */
-  switch (state)
+  if (state == ST_ERROR)
   {
-    case ST_QUOTE:
-      *result = CMDLINE_LEX_UNBALANCED_QUOTE;
-      goto L_ERROR;
+    buffer_free(tokens);
 
-    case ST_ESCAPE:
-    case ST_QUOTE_ESCAPE:
-      *result = CMDLINE_LEX_UNFINISHED_ESCAPE;
-      goto L_ERROR;
+    diag->error = 1;
+    switch (prev_state)
+    {
+      case ST_QUOTE:
+        diag->error_message = "Unfinished quote string";
+        break;
 
-    default:
-      *result = CMDLINE_OK;
-      return tokens;
+      case ST_ESCAPE:
+      case ST_QUOTE_ESCAPE:
+        diag->error_message = "Unfinished escape sequence";
+        break;
+
+      default:
+        break;
+    }
+    return NULL;
   }
-
-L_ERROR:
-  buffer_free(tokens);
-  return NULL;
+  else 
+  {
+    diag->error = 0;
+    return tokens;
+  }
 }
 
 

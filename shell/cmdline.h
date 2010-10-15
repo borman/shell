@@ -4,29 +4,25 @@
 #include "list.h"
 #include "buffer.h"
 #include "cmdnode.h"
-#include "cmdline_status.h"
+#include "diagnostic.h"
 
 typedef struct 
 {
-  /* public */
-  CmdlineParserStatus status; /* error code */
-  List tokens; /* Lexer output */
+  Diagnostic diag;   /* Error flag and description */
 
-  /* private */
-  Buffer *strings;
-  CommandNode *tree;
+  List tokens;       /* Lexer output */
+  CommandNode *tree; /* Execution tree */
+
+  Buffer *strings;   /* Token storage */
 } Program;
 
 /** 
  * Perform lexical parsing of cmdline.
  * 
  * Returns a non-NULL pointer in any case.
- *
- * TODO: Only lexing is performed now.
- * result.tokens is set to a list of tokens.
- * result.status indicates if there were errors.
  */
 Program *cmdline_parse(const char *cmdline);
+
 /**
  * Free resources allocated for parsed command line string.
  */

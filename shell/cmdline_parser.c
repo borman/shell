@@ -80,26 +80,23 @@ static int close_subshell(ParserContext *ctx);
 static ParserState parser_process_token(ParserContext *ctx, 
                                         ParserState state, char *token_str);
 
-CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
+CommandNode *parser_buildtree(List tokens, Diagnostic *diag)
 {
   ParserContext ctx = {NULL, NULL, NULL, NULL};
-
   ParserState state = ST_COMMAND;  
 
   /* Open top-level subshell */
   state = parser_process_token(&ctx, state, "(");
-
   while (tokens != NULL && state != ST_ERROR)
   {
     state = parser_process_token(&ctx, state, list_head_str(tokens));
-
     tokens = tokens->next;
   }
-
   /* Close top-level subshell */
   if (state != ST_ERROR)
     state = parser_process_token(&ctx, state, ")");
 
+  /* Check result status */
   if (state != ST_ERROR && state != ST_REDIRECT_FILENAME &&
       ctx.expr_stack == NULL &&
       ctx.current_expr != NULL && ctx.current_expr->next==NULL)
@@ -108,11 +105,12 @@ CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
     list_free(ctx.current_expr);
     fix_arguments_order(ctx.current_command);
     
-    *status = CMDLINE_OK;
+    diag->error = 0;
     return ctx.current_command;
   }
   else
   {
+    /* failure */
     List stack;
     /* free all CommandNode entities */
     free_command_list(ctx.current_expr);
@@ -123,7 +121,8 @@ CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status)
       stack = list_pop(stack);
     }
 
-    *status = CMDLINE_PARSER_ERROR;
+    diag->error = 1;
+    diag->error_message = "Syntax error";
     return NULL;
   }
 }

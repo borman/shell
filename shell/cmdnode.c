@@ -31,6 +31,18 @@ CommandNode *cmdnode_subshell(List expression)
   return node;
 }
 
+/**
+ * Allocate a new CommandNode struct
+ */
+static CommandNode *cmdnode_alloc(CommandNodeType type, char *command)
+{
+  CommandNode *node = (CommandNode *) calloc(1, sizeof(CommandNode));
+  node->type = type;
+  node->command = command;
+
+  return node; 
+}
+
 
 void cmdnode_add_redirection(CommandNode *node, char *type, char *filename)
 {
@@ -71,18 +83,19 @@ void cmdnode_free_recursive(CommandNode *root)
   cmdnode_free(root);
 }
 
+
+
 /**
  * Command node tree unflattening
- * TODO: handle incorrect input
  */
 
-void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
+void cmdnode_unflatten(CommandNode *node, Diagnostic *diag)
 {
   List expression;
   const unsigned int ops_pipe = CN_PIPE;
   const unsigned int ops_chain = CN_CHAIN | CN_BACKGROUND | CN_AND | CN_OR;
 
-  *status = CMDLINE_OK;
+  diag->error = 0;
 
   /* simple nodes don't need any assistance */
   if (node->type != CN_SUBSHELL || node->expression == NULL)
@@ -92,9 +105,9 @@ void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
   expression = node->expression;
   while (expression != NULL)
   {
-    cmdnode_unflatten(list_head_command(expression), status);
+    cmdnode_unflatten(list_head_command(expression), diag);
     /* stop on error */
-    if (*status != CMDLINE_OK)
+    if (diag->error)
       return;
     expression = expression->next;
   }
@@ -115,7 +128,8 @@ void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status)
   else
   {
     /* failure */
-    *status = CMDLINE_EXPRESSION_ERROR;
+    diag->error = 1;
+    diag->error_message = "Malformed expression";
     node->expression = expression;
   }
 }
@@ -148,15 +162,6 @@ static CommandNodeType operator_type(const char *operator)
       return operator_definitions[i].type;
 
   return CN_NULL;
-}
-
-static CommandNode *cmdnode_alloc(CommandNodeType type, char *command)
-{
-  CommandNode *node = (CommandNode *) calloc(1, sizeof(CommandNode));
-  node->type = type;
-  node->command = command;
-
-  return node; 
 }
 
 /* extract first 2 elements; return true if succeeded */
@@ -241,6 +246,10 @@ static List fold_list(List expression, unsigned int mask)
 
   return list_reverse(result);
 }
+
+/**
+ * Check if this type of node may lack right operand
+ */
 static int allow_incomplete(CommandNodeType type)
 {
   if (type==CN_CHAIN || type==CN_BACKGROUND)

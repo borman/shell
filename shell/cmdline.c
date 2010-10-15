@@ -10,7 +10,7 @@
 #include "debug.h"
 
 /* Make a list out of a chain of strings. */
-static List make_szlist(Buffer *strings)
+static List make_token_list(Buffer *strings)
 {
   size_t pos = 0;
   List list = NULL;
@@ -23,30 +23,36 @@ static List make_szlist(Buffer *strings)
     pos += delta+1;
   }
 
-  return list;
+  return list_reverse(list);
 }
 
 Program *cmdline_parse(const char *cmdline)
 {
-  Program *prog = (Program *)calloc(1, sizeof(Program));
+  Program *prog = (Program *) calloc(1, sizeof(Program));
 
-  prog->strings = lexer_split(cmdline, &prog->status);
-  if (prog->status != CMDLINE_OK)
-      return prog;
+  prog->strings = lexer_split(cmdline, &prog->diag);
+  if (prog->diag.error)
+    return prog;
 
-  prog->tokens = list_reverse(make_szlist(prog->strings));
+  prog->tokens = make_token_list(prog->strings);
+
+  /* Dump tokens list */
+  /*
   debug_dump_szlist(stderr, prog->tokens);
   fprintf(stderr, "\n");
+  */
 
-  prog->tree = parser_buildtree(prog->tokens, &prog->status);
+  prog->tree = parser_buildtree(prog->tokens, &prog->diag);
+  if (prog->diag.error)
+    return prog;
+
+  /* Dump command tree */
+  /*
   debug_dump_cmdnode(stderr, prog->tree);
   fprintf(stderr, "\n");
+  */
 
-  if (prog->status != CMDLINE_OK)
-      return prog;
-
-  /* TODO: Split all flat subexpressions into subtrees */
-  cmdnode_unflatten(prog->tree, &prog->status);
+  cmdnode_unflatten(prog->tree, &prog->diag);
 
   return prog;
 }

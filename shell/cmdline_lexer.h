@@ -3,7 +3,7 @@
 
 #include "cmdline.h"
 
-Buffer *lexer_split(const char *src, CmdlineParserStatus *result);
+Buffer *lexer_split(const char *src, Diagnostic *diag);
 
 #endif /* CMDLINE_LEXER_H */
 

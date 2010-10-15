@@ -1,12 +1,12 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
 
 #include "execute.h"
 #include "debug.h"
@@ -16,6 +16,7 @@ static void redirect_stream(int fd_source, int fd_target);
 static void redirect_to_files(const char *input, const char *output, int do_output_append);
 static void setup_redirections(CommandNode *node);
 static int check_wait(pid_t pid);
+static int builtin_cd(List argv);
 
 static int do_command(CommandNode *node);
 static int do_subshell(CommandNode *node);
@@ -64,9 +65,8 @@ static int do_command(CommandNode *node)
 {
   pid_t child;
 
-  fprintf(stderr, TERM_FG_BROWN TERM_BOLD "do_command %s ", node->command);
-  debug_dump_szlist(stderr, node->arguments);
-  fprintf(stderr, "\n" TERM_NORMAL);
+  if (strcmp(node->command, "cd") == 0)
+    return builtin_cd(node->arguments);
 
   if (((child = fork())) == 0)
   {
@@ -89,7 +89,7 @@ static int do_command(CommandNode *node)
 static int do_subshell(CommandNode *node)
 {
   pid_t pid;
-  fprintf(stderr, TERM_FG_BROWN "do_subshell\n" TERM_NORMAL);
+
   if (((pid = fork())) == 0)
   {
     /* child */
@@ -116,7 +116,6 @@ static int do_chain(CommandNode *node)
   int retval;
   int exec_second;
 
-  fprintf(stderr, TERM_FG_BROWN "do_chain %s\n" TERM_NORMAL, node->command);
   retval = execute(node->op1);
   switch (node->type)
   {
@@ -148,7 +147,7 @@ static int do_background(CommandNode *node)
   pid_t pid;
 
   fprintf(stderr, TERM_FG_BROWN "do_background: no job control\n" TERM_NORMAL);
-  
+
   if (((pid=fork()))==0)
   {
     /* child */
@@ -244,8 +243,6 @@ static void setup_redirections(CommandNode *node)
  */
 static void redirect_to_files(const char *input, const char *output, int do_output_append)
 {
-  fprintf(stderr, "redirecting: (input -> %s), (output -> %s[%d])\n", 
-      input, output, do_output_append);
   if (input != NULL)
   {
     int fd = open(input, O_RDONLY);
@@ -295,8 +292,10 @@ static int check_wait(pid_t pid)
     perror("check_wait");
   else if (WIFEXITED(status))
   {
+    /*
     fprintf(stderr, TERM_FG_BROWN TERM_BOLD "child %d exited with code %d\n" TERM_NORMAL,
         pid, WEXITSTATUS(status));
+    */
     return WEXITSTATUS(status);
   }
   else if (WIFSIGNALED(status))
@@ -308,5 +307,28 @@ static int check_wait(pid_t pid)
     fprintf(stderr, TERM_FG_BROWN "child %d exited with unknown reason\n" TERM_NORMAL, pid);
 
   return 1;
+}
+
+/**
+ * Builtin "cd" command
+ *
+ * FIXME: as top subshell belongs to a child process, current dir is not 
+ *  preserved
+ */
+static int builtin_cd(List argv)
+{
+  const char *path;
+  if (list_size(argv) != 1)
+  {
+    fprintf(stderr, "cd: 1 argument expected\n");
+    return 1;
+  }
+  path = list_head_str(argv);
+  if (chdir(path) != 0)
+  {
+    perror("cd");
+    return 1;
+  }
+  return 0;
 }
 

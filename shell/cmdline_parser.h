@@ -4,7 +4,7 @@
 #include "cmdline.h"
 #include "cmdnode.h"
 
-CommandNode *parser_buildtree(List tokens, CmdlineParserStatus *status);
+CommandNode *parser_buildtree(List tokens, Diagnostic *diag);
   
 #endif /* CMDLINE_PARSER_H */
 

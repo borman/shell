@@ -36,28 +36,14 @@ int main(int argc, char **argv)
     result = readline_run(prompt, linebuffer); 
     prog = cmdline_parse(linebuffer->c_str);
 
-    switch (prog->status)
+    if (prog->diag.error)
     {
-      case CMDLINE_OK:
-        debug_dump_expression_graph(prog->tree);
-        execute(prog->tree);
-        break;
-
-      case CMDLINE_LEX_UNBALANCED_QUOTE:
-        print_error("Syntax error", "Unbalanced quote");
-        break;
-
-      case CMDLINE_LEX_UNFINISHED_ESCAPE:
-        print_error("Syntax error", "Unfinished escape-sequence");
-        break;
-
-      case CMDLINE_PARSER_ERROR:
-        print_error("Parser error", "Syntax error");
-        break;
-
-      case CMDLINE_EXPRESSION_ERROR:
-        print_error("Parser error", "Malformed expression");
-        break;
+      print_error("Error", prog->diag.error_message);
+    }
+    else
+    {
+      debug_dump_expression_graph(prog->tree);
+      execute(prog->tree);
     }
 
     cmdline_free(prog); 

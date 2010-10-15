@@ -2,7 +2,7 @@
 #define CMDNODE_H
 
 #include "list.h"
-#include "cmdline_status.h"
+#include "diagnostic.h"
 
 /**
  * Command line program is represented by a binary tree.
@@ -69,6 +69,6 @@ void cmdnode_free_recursive(CommandNode *root);
  * Transform a CommandNode tree so that for each subshell node
  * a list of its command is folded into a CommandNode tree.
  */
-void cmdnode_unflatten(CommandNode *node, CmdlineParserStatus *status);
+void cmdnode_unflatten(CommandNode *node, Diagnostic *diag);
 #endif /* CMDNODE_H */
 
