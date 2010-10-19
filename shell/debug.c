@@ -86,26 +86,26 @@ static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr)
   switch (expr->type)
   {
     case CN_SUBSHELL:
-      fprintf(file, "node%p [shape=box, label=\"Subshell\"];\n", expr);
+      fprintf(file, "node%p [shape=box, label=\"Subshell\"];\n", (void *)expr);
       break;
   
     case CN_COMMAND:
-      fprintf(file, "node%p [shape=ellipse, label=\"%s\\n", expr, expr->command);
+      fprintf(file, "node%p [shape=ellipse, label=\"%s\\n", (void *)expr, expr->command);
       debug_dump_szlist(file, expr->arguments);
       fprintf(file, "\"];\n");
       break;
 
     default:
-      fprintf(file, "node%p [shape=diamond, label=\"%s\"]\n", expr, expr->command);
+      fprintf(file, "node%p [shape=diamond, label=\"%s\"]\n", (void *)expr, expr->command);
   }
   if (expr->op1 != NULL)
   {
-    fprintf(file, "node%p -> node%p;\n", expr, expr->op1);
+    fprintf(file, "node%p -> node%p;\n", (void *)expr, (void *)expr->op1);
     debug_dump_expression_graph_node(file, expr->op1);
   }
   if (expr->op2 != NULL)
   {
-    fprintf(file, "node%p -> node%p;\n", expr, expr->op2);
+    fprintf(file, "node%p -> node%p;\n", (void *)expr, (void *)expr->op2);
     debug_dump_expression_graph_node(file, expr->op2);
   }
 }
