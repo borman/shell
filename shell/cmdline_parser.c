@@ -45,12 +45,12 @@ typedef struct
  * FSM states
  */
 
-typedef ParserState (*ParserStateHandler) (ParserContext *ctx, const char *token);
+typedef ParserState (*ParserStateHandler) (ParserContext *ctx, char *token);
 
-static ParserState state_command(ParserContext *ctx, const char *token);
-static ParserState state_arguments(ParserContext *ctx, const char *token);
-static ParserState state_redirections(ParserContext *ctx, const char *token);
-static ParserState state_redirect_filename(ParserContext *ctx, const char *token);
+static ParserState state_command(ParserContext *ctx, char *token);
+static ParserState state_arguments(ParserContext *ctx, char *token);
+static ParserState state_redirections(ParserContext *ctx, char *token);
+static ParserState state_redirect_filename(ParserContext *ctx, char *token);
 
 
 /**
@@ -66,10 +66,10 @@ static void free_command_list(List list);
  * FSM utility functions
  */
 
-static void begin_command(ParserContext *ctx, const char *command);
-static void add_argument(ParserContext *ctx, const char *arg);
-static void add_redirection(ParserContext *ctx, const char *filename);
-static void add_operator(ParserContext *ctx, const char *token);
+static void begin_command(ParserContext *ctx, char *command);
+static void add_argument(ParserContext *ctx, char *arg);
+static void add_redirection(ParserContext *ctx, char *filename);
+static void add_operator(ParserContext *ctx, char *token);
 static void open_subshell(ParserContext *ctx);
 static int close_subshell(ParserContext *ctx);
 
@@ -78,7 +78,7 @@ static int close_subshell(ParserContext *ctx);
  */
 
 static ParserState parser_process_token(ParserContext *ctx, 
-                                        ParserState state, const char *token_str);
+                                        ParserState state, char *token_str);
 
 CommandNode *parser_buildtree(List tokens, Diagnostic *diag)
 {
@@ -128,7 +128,7 @@ CommandNode *parser_buildtree(List tokens, Diagnostic *diag)
 }
 
 static ParserState parser_process_token(ParserContext *ctx, 
-                                        ParserState state, const char *token)
+                                        ParserState state, char *token)
 {
   /* Link states to their handlers */
   static const ParserStateHandler state_handlers[] = {
@@ -157,7 +157,7 @@ static ParserState parser_process_token(ParserContext *ctx,
  */
 
 /* Expecting a command to start */
-static ParserState state_command(ParserContext *ctx, const char *token)
+static ParserState state_command(ParserContext *ctx, char *token)
 {
   switch (token_class(token))
   {
@@ -181,7 +181,7 @@ static ParserState state_command(ParserContext *ctx, const char *token)
 }
 
 /* Just read a command, expecting args or command end */
-static ParserState state_arguments(ParserContext *ctx, const char *token)
+static ParserState state_arguments(ParserContext *ctx, char *token)
 {
   if (token_class(token) == TC_TEXT)
   {
@@ -194,7 +194,7 @@ static ParserState state_arguments(ParserContext *ctx, const char *token)
   return state_redirections(ctx, token);
 }
 
-static ParserState state_redirections(ParserContext *ctx, const char *token)
+static ParserState state_redirections(ParserContext *ctx, char *token)
 {
   switch (token_class(token))
   {
@@ -218,7 +218,7 @@ static ParserState state_redirections(ParserContext *ctx, const char *token)
 }
 
 /* Expecting a filename */
-static ParserState state_redirect_filename(ParserContext *ctx, const char *token)
+static ParserState state_redirect_filename(ParserContext *ctx, char *token)
 {
   switch (token_class(token))
   {
@@ -236,7 +236,7 @@ static ParserState state_redirect_filename(ParserContext *ctx, const char *token
  * FSM utility functions. Implementation.
  */
 
-static void begin_command(ParserContext *ctx, const char *command_str)
+static void begin_command(ParserContext *ctx, char *command_str)
 {
   CommandNode *command = cmdnode_command(command_str);
 
@@ -244,18 +244,18 @@ static void begin_command(ParserContext *ctx, const char *command_str)
   ctx->current_command = command;
 }
 
-static void add_argument(ParserContext *ctx, const char *arg)
+static void add_argument(ParserContext *ctx, char *arg)
 {
   ctx->current_command->arguments = 
     list_push(ctx->current_command->arguments, arg);
 }
 
-static void add_redirection(ParserContext *ctx, const char *filename)
+static void add_redirection(ParserContext *ctx, char *filename)
 {
   cmdnode_add_redirection(ctx->current_command, ctx->redirect_type, filename);
 }
 
-static void add_operator(ParserContext *ctx, const char *operator)
+static void add_operator(ParserContext *ctx, char *operator)
 {
   ctx->current_expr = list_push(ctx->current_expr, 
       cmdnode_operator(operator));
