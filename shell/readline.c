@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "readline.h"
 
@@ -8,7 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
+static READLINE_RESULT readline_run_gnu_readline(const char *prompt, Buffer *buf)
 {
   static int history_ready = 0;
   char *line;
@@ -33,9 +34,9 @@ READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
   return READLINE_NEWLINE;
 }
 
-#else
+#endif
 
-READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
+static READLINE_RESULT readline_run_simple(const char *prompt, Buffer *buf)
 {
   int c;
   
@@ -56,4 +57,17 @@ READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
   }
 }
 
+READLINE_RESULT readline_run(const char *prompt, Buffer *buf)
+{
+  if (isatty(0))
+  {
+#ifdef USE_GNU_READLINE
+    return readline_run_gnu_readline(prompt, buf);
+#else
+    return readline_run_simple(prompt, buf);
 #endif
+  }
+  else
+    return readline_run_simple(NULL, buf);
+}
+

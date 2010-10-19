@@ -21,13 +21,7 @@ int main(int argc, char **argv)
   READLINE_RESULT result;
   char *prompt;
 
-  /*
-   * -q argument to omit printing prompt
-   */
-  if (argc>1 && !strcmp(argv[1], "-q"))
-    prompt = NULL;
-  else
-    prompt = TERM_FG_GREEN TERM_BOLD "model_shell> " TERM_NORMAL;
+  prompt = TERM_FG_GREEN TERM_BOLD "model_shell> " TERM_NORMAL;
   
   do
   {
