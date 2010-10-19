@@ -1,0 +1,2 @@
+* Termination notifications for non-direct children of shell process aren't delivered properly
+* Quoting operators does not remove their special meaning
