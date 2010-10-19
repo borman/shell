@@ -253,7 +253,7 @@ static int replace_process(char *program, List arguments)
   execvp(program, argv);
 
 L_ERROR:
-  perror("replace_process");
+  perror(program);
   free(argv);
   exit(1);
   /* noreturn */
