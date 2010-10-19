@@ -160,8 +160,6 @@ static int do_background(CommandNode *node)
 {
   pid_t pid;
 
-  fprintf(stderr, TERM_FG_BROWN "do_background: no job control\n" TERM_NORMAL);
-
   if (((pid=fork()))==0)
   {
     /* child */
@@ -169,7 +167,7 @@ static int do_background(CommandNode *node)
   }
   else if (pid>0)
   {
-    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "spawned bg process %d" TERM_NORMAL, pid);
+    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "Spawned bg process %d" TERM_NORMAL, pid);
     return do_execute(node->op2);
   }
   else
@@ -184,11 +182,53 @@ static int do_background(CommandNode *node)
  */
 static int do_pipe(CommandNode *node)
 {
-  assert(node->op1 != NULL && node->op2 != NULL);
-  assert(node->op1->type == CN_COMMAND || node->op1->type == CN_SUBSHELL);
+  int pipefd[2];
 
-  fprintf(stderr, TERM_FG_BROWN "do_pipe: oops, my mama doesn't let me pipe :(\n" TERM_NORMAL);
-  return 1;
+  if (pipe(pipefd) == 0)
+  {
+    int readfd = pipefd[0];
+    int writefd = pipefd[1];
+
+    pid_t source_pid;
+    pid_t target_pid;
+
+    if (((source_pid = fork())) == 0)
+    {
+      /* source child */
+      int retval;
+      close(readfd);
+      redirect_stream(writefd, STDOUT_FILENO);
+      retval = execute(node->op1);
+      close(writefd);
+      exit(retval);
+    }
+    else
+    {
+      /* parent */
+      close(writefd);
+      if (((target_pid = fork())) == 0)
+      {
+        /* target child */
+        int retval;
+        redirect_stream(readfd, STDIN_FILENO);
+        retval = execute(node->op2);
+        close(readfd);
+        exit(retval);
+      }
+      else
+      {
+        /* parent */
+        close(readfd);
+        check_wait(source_pid);
+        return check_wait(target_pid);
+      }
+    }
+  }
+  else
+  {
+    perror("do_pipe");
+    return 1;
+  }
 }
 
 
@@ -328,9 +368,6 @@ static int check_wait(pid_t pid)
 
 /**
  * Builtin "cd" command
- *
- * FIXME: as top subshell belongs to a child process, current dir is not 
- *  preserved
  */
 static int builtin_cd(List argv)
 {
