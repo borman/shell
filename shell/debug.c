@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "debug.h"
 
 void debug_dump_szlist(FILE *file, List list)
 {
+#ifndef NDEBUG
   fprintf(file, "[");
   while (list != NULL)
   {
@@ -12,10 +14,12 @@ void debug_dump_szlist(FILE *file, List list)
     list = list->next;
   }
   fprintf(file, "]");
+#endif
 }
 
 void debug_dump_cmdnode(FILE *file, CommandNode *node)
 {
+#ifndef NDEBUG
   List list;
   if (node==NULL)
   {
@@ -66,12 +70,14 @@ void debug_dump_cmdnode(FILE *file, CommandNode *node)
     default:
       fprintf(file, "unknown");
   }
+#endif
 }
 
 static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr);
 
 void debug_dump_expression_graph(CommandNode *expr)
 {
+#ifndef NDEBUG
   FILE *file = fopen("/tmp/shell-command.dot", "w");
   if (file == NULL)
     return;
@@ -79,6 +85,7 @@ void debug_dump_expression_graph(CommandNode *expr)
   debug_dump_expression_graph_node(file, expr);
   fprintf(file, "}\n");
   fclose(file);
+#endif
 }
 
 static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr)
@@ -108,4 +115,16 @@ static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr)
     fprintf(file, "node%p -> node%p;\n", (void *)expr, (void *)expr->op2);
     debug_dump_expression_graph_node(file, expr->op2);
   }
+}
+
+void trace(const char *format, ...)
+{
+#if defined(NDEBUG) || defined(NOTRACE)
+  va_list args;
+  va_start(args, format);
+  fprintf(stderr, TERM_FG_CYAN TERM_BOLD "[Trace] " TERM_NORMAL TERM_FG_CYAN);
+  vfprintf(stderr, format, args);
+  fprintf(stderr, TERM_NORMAL "\n");
+  va_end(args);
+#endif
 }

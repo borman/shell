@@ -143,9 +143,7 @@ static ParserState parser_process_token(ParserContext *ctx,
 
   /* debug trace */
   /*
-  fprintf(stderr, TERM_FG_CYAN TERM_BOLD "%d | <\"%s\" %d>\n" TERM_NORMAL,
-          state, token, token_class(token));
-
+  trace("%d | <\"%s\" %d>", state, token, token_class(token));
   */
 
   return state_handlers[state](ctx, token);

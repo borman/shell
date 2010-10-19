@@ -167,7 +167,7 @@ static int do_background(CommandNode *node)
   }
   else if (pid>0)
   {
-    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "Spawned bg process %d" TERM_NORMAL, pid);
+    trace("Spawned bg process %d", pid);
     return do_execute(node->op2);
   }
   else
@@ -348,19 +348,15 @@ static int check_wait(pid_t pid)
     perror("check_wait");
   else if (WIFEXITED(status))
   {
-    /*
-    fprintf(stderr, TERM_FG_BROWN TERM_BOLD "child %d exited with code %d\n" TERM_NORMAL,
-        pid, WEXITSTATUS(status));
-    */
+    trace("child %d exited with code %d", pid, WEXITSTATUS(status));
     return WEXITSTATUS(status);
   }
   else if (WIFSIGNALED(status))
   {
-    fprintf(stderr, TERM_FG_BROWN "child %d killed by signal %d\n" TERM_NORMAL,
-        pid, WTERMSIG(status));
+    trace("child %d killed by signal %d", pid, WTERMSIG(status));
   }
   else
-    fprintf(stderr, TERM_FG_BROWN "child %d exited with unknown reason\n" TERM_NORMAL, pid);
+    trace("child %d exited with unknown reason", pid);
 
   return 1;
 }
