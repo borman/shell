@@ -72,7 +72,7 @@ static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr);
 
 void debug_dump_expression_graph(CommandNode *expr)
 {
-  FILE *file = fopen("command.dot", "w");
+  FILE *file = fopen("/tmp/shell-command.dot", "w");
   if (file == NULL)
     return;
   fprintf(file, "digraph Cmdline {\n");
