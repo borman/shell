@@ -18,6 +18,7 @@ static void setup_redirections(CommandNode *node);
 static int check_wait(pid_t pid);
 static int builtin_cd(List argv);
 
+static int do_execute(CommandNode *node);
 static int do_command(CommandNode *node);
 static int do_subshell(CommandNode *node);
 static int do_chain(CommandNode *node);
@@ -25,6 +26,19 @@ static int do_background(CommandNode *node);
 static int do_pipe(CommandNode *node);
 
 int execute(CommandNode *node)
+{
+  if (node==NULL)
+    return 0;
+  else if (node->type==CN_SUBSHELL)
+    return do_execute(node->op1);
+  else
+    return do_execute(node);
+}
+
+/**
+ * Perform actual tree execution
+ */
+static int do_execute(CommandNode *node)
 {
   if (node==NULL)
     return 0;
@@ -49,7 +63,7 @@ int execute(CommandNode *node)
       return do_chain(node);
 
     default:
-      fprintf(stderr, TERM_FG_BROWN "execute: null node found\n" TERM_NORMAL);
+      assert(0);
       return 1;
   } 
 }
@@ -94,7 +108,7 @@ static int do_subshell(CommandNode *node)
   {
     /* child */
     setup_redirections(node);
-    exit(execute(node->op1));
+    exit(do_execute(node->op1));
     /* noreturn */
   }
   else if (pid > 0)
@@ -116,7 +130,7 @@ static int do_chain(CommandNode *node)
   int retval;
   int exec_second;
 
-  retval = execute(node->op1);
+  retval = do_execute(node->op1);
   switch (node->type)
   {
     case CN_CHAIN:
@@ -133,14 +147,14 @@ static int do_chain(CommandNode *node)
       assert(0);
   }
   if (exec_second)
-    return execute(node->op2);
+    return do_execute(node->op2);
   else
     return retval;
 }
 
 /**
  * Background node: fork and execute left operand in background, while 
- * continuing to execute right operand
+ * continuing to do_execute right operand
  */
 static int do_background(CommandNode *node)
 {
@@ -151,12 +165,12 @@ static int do_background(CommandNode *node)
   if (((pid=fork()))==0)
   {
     /* child */
-    exit(execute(node->op1));
+    exit(do_execute(node->op1));
   }
   else if (pid>0)
   {
     fprintf(stderr, TERM_FG_BROWN TERM_BOLD "spawned bg process %d" TERM_NORMAL, pid);
-    return execute(node->op2);
+    return do_execute(node->op2);
   }
   else
   {
@@ -170,6 +184,9 @@ static int do_background(CommandNode *node)
  */
 static int do_pipe(CommandNode *node)
 {
+  assert(node->op1 != NULL && node->op2 != NULL);
+  assert(node->op1->type == CN_COMMAND || node->op1->type == CN_SUBSHELL);
+
   fprintf(stderr, TERM_FG_BROWN "do_pipe: oops, my mama doesn't let me pipe :(\n" TERM_NORMAL);
   return 1;
 }
