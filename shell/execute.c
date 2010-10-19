@@ -372,12 +372,25 @@ static int check_wait(pid_t pid)
 static int builtin_cd(List argv)
 {
   const char *path;
-  if (list_size(argv) != 1)
+  size_t argc = list_size(argv);
+
+  if (argc > 1)
   {
-    fprintf(stderr, "cd: 1 argument expected\n");
+    fprintf(stderr, "cd: Only one argument expected\n");
     return 1;
   }
-  path = list_head_str(argv);
+  else if (argc == 0)
+  {
+    path = getenv("HOME");
+    if (path == NULL)
+    {
+      fprintf(stderr, "cd: HOME environment variable undefined\n");
+      return 1;
+    }
+  }
+  else
+    path = list_head_str(argv);
+
   if (chdir(path) != 0)
   {
     perror("cd");
