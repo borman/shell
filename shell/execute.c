@@ -303,7 +303,7 @@ static void redirect_to_files(const char *input, const char *output, int do_outp
   {
     int fd = open(input, O_RDONLY);
     if (fd < 0)
-      perror(TERM_FG_RED TERM_BOLD "Cannot open input file" TERM_NORMAL);
+      perror("Cannot open input file");
     else
       redirect_stream(fd,  STDIN_FILENO);
   }
@@ -311,7 +311,7 @@ static void redirect_to_files(const char *input, const char *output, int do_outp
   {
     int fd = open(output, O_WRONLY | O_CREAT | (do_output_append? O_APPEND : O_TRUNC), 0666);
     if (fd < 0)
-      perror(TERM_FG_RED TERM_BOLD "Cannot open output file" TERM_NORMAL);
+      perror("Cannot open output file");
     else
       redirect_stream(fd,  STDOUT_FILENO);
   }
