@@ -92,8 +92,14 @@ void cmdnode_free_recursive(CommandNode *root)
 void cmdnode_unflatten(CommandNode *node, Diagnostic *diag)
 {
   List expression;
-  const unsigned int ops_pipe = CN_PIPE;
-  const unsigned int ops_chain = CN_CHAIN | CN_BACKGROUND | CN_AND | CN_OR;
+  const unsigned int ops[] = 
+  {
+    CN_PIPE,
+    CN_BACKGROUND,
+    CN_CHAIN | CN_AND | CN_OR
+  };
+  const size_t n_ops = sizeof(ops)/sizeof(unsigned int);
+  size_t op;
 
   diag->error = 0;
 
@@ -114,8 +120,8 @@ void cmdnode_unflatten(CommandNode *node, Diagnostic *diag)
 
   /* apply list folding */
   expression = node->expression;
-  expression = fold_list(expression, ops_pipe);
-  expression = fold_list(expression, ops_chain);
+  for (op=0; op<n_ops; op++)
+    expression = fold_list(expression, ops[op]);
   
   /* list must have folded into a single item */
   if (expression->next == NULL) 
