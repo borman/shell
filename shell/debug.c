@@ -119,7 +119,7 @@ static void debug_dump_expression_graph_node(FILE *file, CommandNode *expr)
 
 void trace(const char *format, ...)
 {
-#if defined(NDEBUG) || defined(NOTRACE)
+#if (!defined(NDEBUG)) && (!defined(NOTRACE))
   va_list args;
   va_start(args, format);
   fprintf(stderr, TERM_FG_CYAN TERM_BOLD "[Trace] " TERM_NORMAL TERM_FG_CYAN);
