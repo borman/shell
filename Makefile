@@ -1,12 +1,12 @@
 # Target description
-SOURCES = $(wildcard *.c)
+SOURCES = $(wildcard src/*.c)
 TARGET = shell
 
 USE_COLORS ?= 1
 USE_GNU_READLINE ?= 1
 
 # Default config
-include ../mkspecs/config.mk
+include makefiles/config.mk
 
 ifeq ($(USE_GNU_READLINE), 1)
 	CFLAGS += -DUSE_GNU_READLINE
@@ -18,4 +18,4 @@ ifeq ($(USE_COLORS), 1)
 endif
 
 # Default rules
-include ../mkspecs/rules.mk
+include makefiles/rules.mk
